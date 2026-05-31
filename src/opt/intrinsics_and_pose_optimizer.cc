@@ -703,17 +703,11 @@ void IntrinsicsAndPoseOptimizer::AccumulateHAndBAndResidualsForObservations(
     }
     
     // Compute Jacobians.
-    Eigen::Ref<Eigen::Matrix<float, 1, kIntrinsicsParameterCount>>
-        j_intrinsics_ref =
-            all_j_intrinsics.segment<kIntrinsicsParameterCount>(next_jac_index * kIntrinsicsParameterCount);
-    Eigen::Ref<Eigen::Matrix<float, 1, kNumVariablesPerImage>>
-        j_pose_ref =
-            all_j_pose.segment<kNumVariablesPerImage>(next_jac_index * kNumVariablesPerImage);
-    Eigen::Ref<Eigen::Matrix<float, 1, kNumVariablesPerImage>>
-        j_rig_extrinsics_ref =
-            all_j_rig_extrinsics.segment<kNumVariablesPerImage>(next_jac_index * kNumVariablesPerImage);
+    Eigen::Matrix<float, 1, kIntrinsicsParameterCount> j_intrinsics_ref;
+    Eigen::Matrix<float, 1, kNumVariablesPerImage> j_pose_ref;
+    Eigen::Matrix<float, 1, kNumVariablesPerImage> j_rig_extrinsics_ref;
     float depth_residual;
-    bool have_Jacobians = ComputePointIntensityAndJacobians(
+    bool have_Jacobians = ComputePointIntensityAndJacobians<Camera, kIntrinsicsParameterCount>(
         point_scale,
         point_radius,
         min_image_scale_camera,
@@ -741,6 +735,9 @@ void IntrinsicsAndPoseOptimizer::AccumulateHAndBAndResidualsForObservations(
       LOG(FATAL) << "Cannot run ComputePointIntensityAndJacobians() on observation";
       continue;
     }
+    all_j_intrinsics.segment<kIntrinsicsParameterCount>(next_jac_index * kIntrinsicsParameterCount) = j_intrinsics_ref;
+    all_j_pose.segment<kNumVariablesPerImage>(next_jac_index * kNumVariablesPerImage) = j_pose_ref;
+    all_j_rig_extrinsics.segment<kNumVariablesPerImage>(next_jac_index * kNumVariablesPerImage) = j_rig_extrinsics_ref;
     point_index_to_jac_index[observation.point_index] = next_jac_index;
     ++ next_jac_index;
     
@@ -749,7 +746,7 @@ void IntrinsicsAndPoseOptimizer::AccumulateHAndBAndResidualsForObservations(
       float depth_residual_weight = problem_->robust_weighting_for_depths().CalculateWeight(depth_residual);
       // We take into account the depth residual weighting factor here.
       depth_residual_weight *= GlobalParameters().depth_residuals_weight;
-      AccumulateOnHAndB(
+      AccumulateOnHAndB<kIntrinsicsParameterCount>(
           depth_residual_weight, depth_residual, is_dependent_rig_image,
           intrinsics_variables_index, image_variables_index, rig_variables_index,
           j_depth_residual_wrt_intrinsics, j_depth_residual_wrt_pose,
@@ -921,7 +918,7 @@ void IntrinsicsAndPoseOptimizer::AccumulateHAndBAndResidualForColorObservation(
           all_j_rig_extrinsics.segment<kNumVariablesPerImage>(
               observation_jac_index * kNumVariablesPerImage);
       
-      AccumulateOnHAndB(
+      AccumulateOnHAndB<kIntrinsicsParameterCount>(
           weight, component_residuals->at(k), is_dependent_rig_image,
           intrinsics_variables_index, image_variables_index, rig_variables_index,
           j_intrinsics, j_pose, j_rig_extrinsics, H, b);

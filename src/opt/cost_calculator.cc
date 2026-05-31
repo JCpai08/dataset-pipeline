@@ -118,7 +118,7 @@ void CostCalculator::AccumulateResidualsForObservations(
   
   bool use_fixed_color_residuals = GlobalParameters().fixed_residuals_weight > 0;
   bool use_variable_color_residuals = GlobalParameters().variable_residuals_weight > 0;
-  bool use_depth_residuals = GlobalParameters().depth_residuals_weight > 0;
+  bool use_depth_residuals = GlobalParameters().depth_residuals_weight > 0 && depth_maps;
   
   int neighbor_count = GlobalParameters().point_neighbor_count;
   cv::Mat_<uint8_t> debug_costs;
@@ -128,10 +128,37 @@ void CostCalculator::AccumulateResidualsForObservations(
   for (std::size_t observation_index = 0, end = observations.size();
        observation_index < end; ++ observation_index) {
     const PointObservation& observation = observations.at(observation_index);
+    if (observation.point_index >= point_intensities.size()) {
+      continue;
+    }
+    int smaller_scale = observation.smaller_interpolation_scale();
+    int larger_scale = observation.larger_interpolation_scale();
+    if (larger_scale < intrinsics.min_image_scale ||
+        smaller_scale >= problem_->image_scale_count()) {
+      continue;
+    }
+    const cv::Mat_<uint8_t>& smaller_image = image.image(smaller_scale, intrinsics);
+    const cv::Mat_<uint8_t>& larger_image = image.image(larger_scale, intrinsics);
+    int smaller_ix = static_cast<int>(observation.smaller_scale_image_x);
+    int smaller_iy = static_cast<int>(observation.smaller_scale_image_y);
+    float larger_x = observation.larger_scale_image_x();
+    float larger_y = observation.larger_scale_image_y();
+    int larger_ix = static_cast<int>(larger_x);
+    int larger_iy = static_cast<int>(larger_y);
+    if (observation.smaller_scale_image_x < 0.f ||
+        observation.smaller_scale_image_y < 0.f ||
+        smaller_ix >= smaller_image.cols - 1 ||
+        smaller_iy >= smaller_image.rows - 1 ||
+        larger_x < 0.f ||
+        larger_y < 0.f ||
+        larger_ix >= larger_image.cols - 1 ||
+        larger_iy >= larger_image.rows - 1) {
+      continue;
+    }
     
     opt::InterpolateTrilinearNoCheck(
-        image.image(observation.smaller_interpolation_scale(), intrinsics),
-        image.image(observation.larger_interpolation_scale(), intrinsics),
+        smaller_image,
+        larger_image,
         observation.smaller_scale_image_x,
         observation.smaller_scale_image_y,
         1 - (observation.image_scale - static_cast<int>(observation.image_scale)),

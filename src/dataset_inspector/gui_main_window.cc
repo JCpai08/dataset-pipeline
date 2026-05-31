@@ -62,6 +62,7 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags,
                        bool optimization_tools, const float max_occ_depth)
     : QMainWindow(parent, flags) {
   current_image_id_ = opt::Image::kInvalidId;
+  setWindowTitle("Dataset Inspector");
   
   QHBoxLayout* horizontal_layout = new QHBoxLayout();
   
@@ -335,6 +336,7 @@ bool MainWindow::LoadDataset(
   splat_mesh_path_ = splat_mesh_path;
   image_base_path_ = image_base_path;
   state_path_ = state_path;
+  setWindowTitle(QString("Dataset Inspector - %1").arg(QString::fromStdString(state_path_)));
   
   // Load scan point clouds.
   std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> colored_scans;
@@ -682,6 +684,7 @@ void MainWindow::SaveStateClicked(bool /*checked*/) {
       path.toStdString(),
       nullptr);
   state_path_ = path.toStdString();
+  setWindowTitle(QString("Dataset Inspector - %1").arg(QString::fromStdString(state_path_)));
   
   QMessageBox::information(this, "Save state file", "Finished saving.");
 }

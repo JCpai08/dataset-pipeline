@@ -360,7 +360,7 @@ int main(int argc, char** argv) {
   // Indexed by: [scan_index][scan_point_index].
   std::vector<std::vector<int>> observation_counts(colored_scans.size());
   for (size_t scan_index = 0; scan_index < colored_scans.size(); ++ scan_index) {
-    observation_counts[scan_index].resize(colored_scans[scan_index]->size(), 0);
+    observation_counts[static_cast<std::size_t>(scan_index)].resize(colored_scans[scan_index]->size(), 0);
   }
   int current_image = 0;
   LOG(INFO) << "Count observations of each scan point, dismiss images with less than 2 scan point";
@@ -373,8 +373,8 @@ int main(int argc, char** argv) {
   }
 
   #pragma omp parallel for
-  for(size_t i=0; i<images_nb;i++){
-    const opt::Image& image = problem.image(image_ids[i]);
+  for(long long i = 0; i < static_cast<long long>(images_nb); ++ i){
+    const opt::Image& image = problem.image(image_ids[static_cast<std::size_t>(i)]);
     #pragma omp critical
     std::cout << "Image [" << ++current_image << "/" << images_nb << "]\r" << std::flush;
     const opt::Intrinsics& intrinsics = problem.intrinsics(image.intrinsics_id);
@@ -402,9 +402,9 @@ int main(int argc, char** argv) {
     boost::filesystem::create_directories(output_points_folder_path);
     io::MeshLabMeshInfoVector out_info_vector = scan_infos;
     #pragma omp parallel for
-    for (size_t scan_index = 0; scan_index < scan_infos.size(); ++ scan_index) {
-      const io::MeshLabProjectMeshInfo& scan_info = scan_infos[scan_index];
-      const std::vector<int>& scan_observation_counts = observation_counts[scan_index];
+    for (long long scan_index = 0; scan_index < static_cast<long long>(scan_infos.size()); ++ scan_index) {
+      const io::MeshLabProjectMeshInfo& scan_info = scan_infos[static_cast<std::size_t>(scan_index)];
+      const std::vector<int>& scan_observation_counts = observation_counts[static_cast<std::size_t>(scan_index)];
       
       std::string file_path =
           boost::filesystem::path(scan_info.filename).is_absolute() ?
@@ -430,7 +430,7 @@ int main(int argc, char** argv) {
           boost::filesystem::path(scan_info.filename).filename()).string();
       pcl::io::savePLYFileBinary(output_points_file_path, trimmed_point_cloud);
       
-      out_info_vector[scan_index].filename = boost::filesystem::path(scan_info.filename).filename().string();
+      out_info_vector[static_cast<std::size_t>(scan_index)].filename = boost::filesystem::path(scan_info.filename).filename().string();
     }
     std::string output_points_alignment_file_path =
         (boost::filesystem::path(output_points_folder_path) /
@@ -450,10 +450,10 @@ int main(int argc, char** argv) {
       LOG(INFO) << "Writing scan renderings ...";
     int current_image = 0;
     #pragma omp parallel for
-    for (std::size_t i = 0; i< images_nb; ++i){
+    for (long long i = 0; i < static_cast<long long>(images_nb); ++ i){
       #pragma omp critical
       std::cout << "Image [" << ++current_image << "/" << images_nb << "]\r" << std::flush;
-      const opt::Image& image = problem.image(image_ids[i]);
+      const opt::Image& image = problem.image(image_ids[static_cast<std::size_t>(i)]);
       const opt::Intrinsics& intrinsics = problem.intrinsics(image.intrinsics_id);
       const camera::CameraBase& highest_resolution_camera =
               *intrinsics.model(0);

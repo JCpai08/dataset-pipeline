@@ -41,6 +41,7 @@
 #define PCL_FILTERS_IMPL_LOCAL_STATISTICAL_OUTLIER_REMOVAL_H_
 
 #include <pcl/common/io.h>
+#include <cmath>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template <typename PointT> void
@@ -57,7 +58,7 @@ pcl::LocalStatisticalOutlierRemoval<PointT>::applyFilter (PointCloud &output)
     output = *input_;
     for (int rii = 0; rii < static_cast<int> (removed_indices_->size ()); ++rii)  // rii = removed indices iterator
       output.points[(*removed_indices_)[rii]].x = output.points[(*removed_indices_)[rii]].y = output.points[(*removed_indices_)[rii]].z = user_filter_value_;
-    if (!pcl_isfinite (user_filter_value_))
+    if (!std::isfinite(user_filter_value_))
       output.is_dense = false;
   }
   else
@@ -93,9 +94,9 @@ pcl::LocalStatisticalOutlierRemoval<PointT>::applyFilterIndices (std::vector<int
   int valid_distances = 0;
   for (int iii = 0; iii < static_cast<int> (indices_->size ()); ++iii)  // iii = input indices iterator
   {
-    if (!pcl_isfinite (input_->points[(*indices_)[iii]].x) ||
-        !pcl_isfinite (input_->points[(*indices_)[iii]].y) ||
-        !pcl_isfinite (input_->points[(*indices_)[iii]].z))
+    if (!std::isfinite(input_->points[(*indices_)[iii]].x) ||
+        !std::isfinite(input_->points[(*indices_)[iii]].y) ||
+        !std::isfinite(input_->points[(*indices_)[iii]].z))
     {
       distances[iii] = 0.0;
       continue;
@@ -121,9 +122,9 @@ pcl::LocalStatisticalOutlierRemoval<PointT>::applyFilterIndices (std::vector<int
   for (int iii = 0; iii < static_cast<int> (indices_->size ()); ++iii)  // iii = input indices iterator
   {
     bool problematic_point =
-        !pcl_isfinite (input_->points[(*indices_)[iii]].x) ||
-        !pcl_isfinite (input_->points[(*indices_)[iii]].y) ||
-        !pcl_isfinite (input_->points[(*indices_)[iii]].z) ||
+        !std::isfinite(input_->points[(*indices_)[iii]].x) ||
+        !std::isfinite(input_->points[(*indices_)[iii]].y) ||
+        !std::isfinite(input_->points[(*indices_)[iii]].z) ||
         searcher_->nearestKSearch ((*indices_)[iii], mean_k_ + 1, nn_indices, nn_dists) == 0;
     if (!negative_ && problematic_point)
     {

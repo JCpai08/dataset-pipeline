@@ -48,7 +48,11 @@ set(SRC
   cork/off2obj.cpp
 )
 
-add_definitions("-Wall -O3 -msse2 -msse3 -std=c++11")
+if(MSVC)
+  add_compile_options(/W3)
+else()
+  add_definitions("-Wall -O3 -msse2 -msse3 -std=c++11")
+endif()
 # For triangle:
 add_definitions("-DNO_TIMER -DREDUCED -DCDT_ONLY -DTRILIBRARY -DANSI_DECLARATORS")
 include_directories(
@@ -61,4 +65,8 @@ include_directories(
   cork/rawmesh
   cork/util
 )
-add_library(cork SHARED ${SRC})
+add_library(cork STATIC ${SRC})
+target_link_libraries(cork ${GMP_LIBRARIES})
+if(MSVC)
+  target_compile_definitions(cork PRIVATE NOMINMAX _USE_MATH_DEFINES)
+endif()

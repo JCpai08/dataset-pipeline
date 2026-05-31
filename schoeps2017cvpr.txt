@@ -1,0 +1,528 @@
+                                                 This is a preprint for the paper accepted for publication in CVPR 2017. c 2017 IEEE
+
+
+
+                             A Multi-View Stereo Benchmark with
+                        High-Resolution Images and Multi-Camera Videos
+
+                 Thomas Schöps1          Johannes L. Schönberger1     Silvano Galliani2
+                         1                        2                   1,4
+          Torsten Sattler         Konrad Schindler      Marc Pollefeys        Andreas Geiger1,3
+                               1
+                                 Department of Computer Science, ETH Zürich
+                          2
+                            Institute of Geodesy and Photogrammetry, ETH Zürich
+       3
+         Autonomous Vision Group, MPI for Intelligent Systems, Tübingen 4 Microsoft, Redmond
+
+
+                         Abstract                                     a tedious and challenging task. It requires the acquisition
+                                                                      of images and a 3D scene model, e.g., through a laser scan-
+   Motivated by the limitations of existing multi-view stereo         ner or structured light sensor, as well as careful registration
+benchmarks, we present a novel dataset for this task. To-             between the different modalities. Often, manual work is re-
+wards this goal, we recorded a variety of indoor and out-             quired [6] to mask occluded regions, sensor inaccuracies or
+door scenes using a high-precision laser scanner and cap-             image areas with invalid depth estimates, e.g., due to mov-
+tured both high-resolution DSLR imagery as well as syn-               ing objects. Therefore, existing benchmarks are limited in
+chronized low-resolution stereo videos with varying fields-           their variability and are often also domain specific.
+of-view. To align the images with the laser scans, we pro-
+pose a robust technique which minimizes photometric er-                   This paper presents a novel benchmark for two- and
+rors conditioned on the geometry. In contrast to previous             multi-view stereo algorithms designed to complement ex-
+datasets, our benchmark provides novel challenges and cov-            isting benchmarks across several dimensions (c.f . Fig. 1):
+ers a diverse set of viewpoints and scene types, ranging              (i) Compared to previous MVS benchmarks, our dataset of-
+from natural scenes to man-made indoor and outdoor en-                fers images acquired at a very high resolution. Using a pro-
+vironments. Furthermore, we provide data at significantly             fessional DSLR camera, we capture images at 24 Megapixel
+higher temporal and spatial resolution. Our benchmark is              resolution compared to 6 Megapixels in Strecha et al. [40],
+the first to cover the important use case of hand-held mobile         0.5 Megapixels in KITTI [6], and 0.3 Megapixels in Mid-
+devices while also providing high-resolution DSLR camera              dlebury [38]. This enables the evaluation of algorithms de-
+images. We make our datasets and an online evaluation                 signed for detailed 3D reconstruction. At the same time, it
+server available at http:// www.eth3d.net.                            encourages the development of memory and computation-
+                                                                      ally efficient methods which can handle very large datasets.
+1. Introduction                                                       (ii) By now, mobile devices have become powerful enough
+                                                                      for real-time stereo [20, 28, 30, 36, 41], creating the need for
+   The problem of reconstructing 3D geometry from two                 benchmark datasets that model the acquisition process typ-
+or more views has received tremendous attention in com-               ical for such hand-held devices. In addition to the DSLR
+puter vision for several decades. Applications range from             images, we also capture a set of image sequences with four
+3D reconstruction of objects [4] and larger scenes [3, 5, 35]         synchronized cameras forming two stereo pairs that move
+over dense sensing for autonomous vehicles [6–8, 11, 30]              freely through the scene. These videos enable algorithms
+or obstacle detection [10] to 3D reconstruction from mobile           to exploit the redundancy provided by high frame rates to
+devices [14, 20, 28, 36, 41]. Despite its long history, many          improve the reconstruction quality. Again, this scenario re-
+problems in 3D reconstruction remain unsolved to date. To             wards efficient algorithms which can handle large amounts
+identify these problems and analyze the strengths and weak-           of data. To study the effect of field-of-view (FOV) and dis-
+nesses of the state-of-the-art, access to a large-scale dataset       tortion, we recorded stereo imagery using different lenses.
+with 3D ground truth is indispensable.                                (iii) In contrast to the Middlebury benchmarks [33, 38],
+   Indeed, the advent of excellent datasets and benchmarks,           our scenes are not carefully staged in a controlled labo-
+such as [6,12,17,29,32–34,38,40], has greatly advanced the            ratory environment. Instead, they provide the full range
+state of the art of stereo and multi-view stereo (MVS) tech-          of challenges of real-word photogrammetric measurements.
+niques. However, constructing good benchmark datasets is              Rather than moving along a constrained trajectory, e.g., in a
+
+                                                                  1
+              (a) Scene type                  (b) View point        (c) Camera type                    (d) Field of view
+Figure 1. Examples demonstrating the variety of our dataset in terms of appearance and depth. (a) Colored 3D point cloud renderings of
+different natural and man-made scenes. (b) DSLR images taken from different view points. (c) DSLR image (top) and image from our
+multi-camera rig (bottom) of the same scene. (d) Camera rig images with different fields-of-view.
+
+circle around an object, our cameras undergo unconstrained                Towards more realism, Scharstein et al. [33] proposed
+6-DoF motion. As a result, MVS algorithms need to be                  the Middlebury stereo evaluation, comprising 38 indoor
+able to account for stronger variations in viewpoint. In              scenes at VGA resolution with ground truth correspon-
+contrast to Strecha’s dataset [40], our benchmark covers a            dences obtained via a structured light scanner. A new ver-
+wider spectrum of scenes, ranging from office scenes over             sion of the Middlebury dataset [32] has recently been re-
+man-made outdoor environments to natural scenes depict-               leased, featuring ground truth disparities for 33 novel scenes
+ing mostly vegetation. The latter type is especially interest-        at a resolution of 6 Megapixels. Unfortunately, the amount
+ing as there exist fewer priors which are applicable to this          of human labor involved in staging the scenes and record-
+scenario. In addition, our scenes comprise fine details (e.g.,        ing the ground truth is considerable. Thus, these datasets
+trees, wires) which are challenging for existing techniques.          are relatively small in size. Besides, their variability is lim-
+    The contributions of this paper include (i) a benchmark,          ited as the setup requires controlled structured lighting con-
+which is made publicly available together with a website              ditions. In contrast, we are interested in general scenes and
+for evaluating novel algorithms on a hold out test set, (ii) a        introduce a dataset that features both indoor and outdoor
+highly accurate alignment strategy that we use to register            environments.
+images and video sequences against 3D laser scan point                    Geiger et al. [6, 24] recorded the KITTI datasets using
+clouds, and (iii) an analysis of existing state-of-the-art algo-      a mobile platform with a laser scanner mounted on a car.
+rithms on this benchmark. Our benchmark provides novel                This automated the recording process. However, the bench-
+challenges and we believe that it will become an invaluable           mark images are of low resolution (0.5 Megapixels) and the
+resource for future research in dense 3D reconstruction with          ground truth annotations are sparse (< 50% of all image
+a focus on big data and mobile devices.                               pixels). Besides, a fixed sensor setup on a car limits the
+                                                                      diversity of the recorded scenes to road-like scenarios.
+2. Related Work                                                           Rendered images, as used in the MPI Sintel stereo
+                                                                      benchmark [1], provide an alternative to real recordings and
+   In this section, we review existing two- and multi-view            have been used for learning complex models [23]. Yet, cre-
+stereo datasets. An overview which compares key aspects               ating realistic 3D models is difficult and the degree of real-
+of our dataset to existing benchmarks is provided in Tab. 1.          ism required is still not well understood [43].
+Two-View Stereo Datasets. One of the first datasets for               Multi-View Stereo Datasets. The Middlebury dataset of
+two-view stereo evaluation was the Tsukuba image pair [27]            Seitz et al. [38] was the first common benchmark for eval-
+for which 16 levels of disparity have been manually anno-             uating multi-view stereo on equal grounds. They captured
+tated. Unfortunately, manual annotation does not scale to             hundreds of images per object using a robot that uniformly
+large realistic datasets due to their complexity [21].                sampled the hemisphere enclosing the scene. Reference
+      Benchmark                Setting         Resolution Online Eval. 6DoF Motion MVS Stereo Video Varying FOV
+      Middlebury MVS [38]      Laboratory         0.3 Mpx      3                    3
+      Middlebury [32, 33]      Laboratory           6 Mpx      3                         3
+      DTU [17]                 Laboratory           2 Mpx                           3
+      MPI Sintel [1]           Synthetic          0.4 Mpx      3           3             3      3
+      KITTI [6, 24]            Street scenes      0.5 Mpx      3                    3    3      3
+      Strecha [40]             Buildings            6 Mpx                  3        3
+      ETH3D (Proposed)         Varied        0.4 / 24 Mpx      3           3        3    3      3        3
+Table 1. Comparison of existing state-of-the-art benchmarks with our new dataset. Among other factors, we differentiate between different
+scene types (e.g., staged scenes captured in a laboratory vs. synthetic scenes), whether the camera undergoes a restricted or a full 6
+degrees-of-freedom (DoF) motion, or whether cameras with different fields-of-view (FOV) are used.
+
+data has been created by stitching several line laser scans            the occlusions within it, we recorded one or multiple 360◦
+together. Unfortunately, this benchmark provides a limited             scans with up to ∼28 million points each. In addition to
+image resolution (VGA), and its data, captured in a con-               the depth measurements, we recorded the color of each 3D
+trolled laboratory environment, does not reflect many of               point provided by the laser scanner’s integrated RGB cam-
+the challenges in real-world scenes. Besides, only two toy             era. Recording a single scan took ∼9 minutes.
+scenes with Lambertian surface properties are provided, re-               For the high-resolution image data, we used a profes-
+sulting in overfitting and performance saturation.                     sional Nikon D3X DSLR camera on a tripod. We kept
+    As a consequence, Strecha et al. [40] proposed a new               the focal length and the aperture fixed, such that the intrin-
+MVS benchmark comprising 6 outdoor datasets which in-                  sic parameters can be shared between all images with the
+clude ∼30 images at 6 Megapixel resolution, as well as                 same settings. The camera captures photos at a resolution
+ground truth 3D models captured by a laser scanner. While              of 6048×4032 Pixels with a 85◦ FOV.
+this dataset fostered the development of efficient methods, it            For the mobile scenario, we additionally recorded videos
+provides relatively easy (i.e., well-textured) scenes and the          using the multi-camera setup described in [9]: We use four
+benchmark’s online service is not available anymore.                   global-shutter cameras, forming two stereo pairs, which are
+    To compensate for the lack of diversity in [38, 40] and            hardware-synchronized via an FPGA and record images at
+the well textured, diffuse surfaces of [40], Jensen et al. [17]        ∼13.6Hz. The cameras of the first stereo pair have a FOV
+captured a multitude of real-world objects using a robotic             of 54◦ each, while the other two cameras have a FOV of
+arm. Yet, their controlled environment shares several limita-          83◦ . All cameras capture images at a resolution of 752×480
+tions with the original Middlebury benchmark and reduces               pixels. As common and necessary for mobile devices, we
+the variety of scenes and viewpoints.                                  set the exposure settings to automatic, allowing the device
+    Simultaneously to our work, Knapitsch et al. proposed a            to adapt to illumination changes.
+new benchmark for challenging indoor and outdoor scenes
+[19]. Their benchmark provides high-resolution video                   3.2. Registration
+data and uses ground truth measurements obtained with a                   To use the recorded data for our benchmark, we first
+laser scanner. While our benchmark focuses on evaluat-                 remove errors from the laser scans and mask problematic
+ing both binocular stereo and MVS, theirs jointly evalu-               areas in the images. Next, we align the scans taken from
+ates Structure-from-Motion (SfM) and MVS. Knapitsch et                 different positions with each other and register the cam-
+al. captured their video sequences with a high-end camera              era images against the laser scan point clouds. We employ
+and carefully selected camera settings to maximize video               a fully automatic three-stage alignment procedure for this
+quality. In contrast, our videos were captured with cameras            task. The first stage estimates a rough initial alignment be-
+commonly used for mobile robotics and always use auto-                 tween the laser scans and the camera images. We then refine
+exposure. Thus, both benchmarks complement each other.                 the registration of the laser scans, followed by a refinement
+                                                                       of the intrinsic and extrinsic calibration of the cameras. In
+3. Data Acquisition and Registration                                   the following, we describe each of these steps in detail.
+    We follow [6, 24, 25, 38, 40] and capture the ground truth         Preprocessing.       The raw laser scans contain artifacts
+for our dataset using a highly accurate 3D laser scanner.              caused by beams reflected from both foreground and back-
+This section describes the data acquisition and our approach           ground objects, resulting in the interpolation of foreground
+to robustly and accurately register images and laser scans.            and background depths at occlusion boundaries. Further-
+                                                                       more, reflecting objects and glass frequently cause system-
+3.1. Data Acquisition
+                                                                       atic outliers. Therefore, we filter the scans with the sta-
+  We recorded the ground truth scene geometry with a Faro              tistical outlier removal procedure from [31]. This removes
+Focus X 330 laser scanner. For each scene, depending on                all points from the cloud whose average distance to their
+                                                                    given the high accuracy of the laser scanner and the massive
+                                                                    amount of information per scan. Thus, we fix the scan poses
+                                                                    from here on.
+                                                                    Refinement of Image Alignment. In the last step of the
+                                                                    pipeline, we refine the extrinsic and intrinsic parameters of
+                                                                    the cameras while keeping the laser scan point cloud fixed.
+                                                                    For this step, we use an extended version of the dense image
+Figure 2. Left: Illustration of a cube map. One of the 6 virtual    alignment approach proposed by Zhou & Koltun [47].
+cameras is highlighted in red, coordinate axes are shown in blue.      Zhou & Koltun first sample a set of points P from a mesh
+Right: Sparse color image and depth map (left) and the inpainted    surface and then optimize the camera parameters and the in-
+image (right) for one virtual camera.
+                                                                    tensity c(p) of each 3D point to minimize the cost function
+                                                                                   X X                            2
+k nearest neighbors is larger than a threshold. The point                                     (Ii (πi (p)) − c(p)) .          (1)
+density of our scans differs depending on the distance from                       p∈P i∈I(p)
+the scanner to the surface. Thus, we compute the threshold
+used for outlier removal for each point from its local neigh-       Here, I(p) denotes the set of images in which point p ∈ P
+borhood rather than using one single global value. In a fi-         is visible, Ii (πi (p)) is the intensity of image i at pixel coor-
+nal step, we manually remove undetected systematic errors.          dinate πi (p) corresponding to p’s projection. c(p) denotes
+We also inspect each image and annotate regions which               the intensity of p, which belongs to the variables that are
+should not be used. These regions include moving objects,           optimized. In our case, we use the joint point cloud from all
+e.g., moving branches in the wind, objects not represented          scans for P. To determine the visibility I(p), we compute
+correctly in the laser scan such as transparent surfaces, or        a screened Poisson surface reconstruction [18] for P. Since
+regions for which occlusion reasoning (as described later)          thin objects such as wires are often not captured by the
+fails due to the sparsity of the measured 3D point cloud.           reconstruction, we augment the mesh-based representation
+                                                                    with splats, i.e., oriented discs, generated for all scan points
+Initial Laser Scan and Image Alignment. We use the                  far away from the Poisson surface. I(p) is then determined
+COLMAP SfM pipeline [35,37] to obtain an initial estimate           from depth map renderings of the mesh and the splats. All
+of the laser scan poses as well as the extrinsics and intrinsics    points whose depth is smaller than that of the depth map
+of the cameras. It is well known [15,39] that rendered views        rendering at their projected positions, plus a small tolerance
+can be robustly matched against real imagery using classical        of 1cm, are assumed to be visible in the image.
+descriptors like SIFT [22]. To register the laser scans with            Eq. 1 directly compares pixel intensities and thus as-
+the images, we thus include rendered cube map images for            sumes brightness constancy. However, this assumption is
+each scan position into the SfM reconstruction. Cube maps           strongly violated in our setting, since we (1) use multiple
+use the six faces of a cube to create an omnidirectional view       cameras, some of which employ an auto-exposure setting,
+of the environment. The six projection centers of the vir-          and (2) record outdoor scenes where strong lighting changes
+tual cube map cameras coincide with the origin of the laser         require manipulation of shutter time. Rather than directly
+scanner. We render the colored point cloud of a laser scan          comparing pixel intensities, we thus compare intensity gra-
+into these cameras, resulting in six sparse color and depth         dients g, making our objective robust to brightness changes.
+images per laser scan (c.f . Fig. 2). We fill in missing pix-       Similar to computing finite difference gradients in an image,
+els not covered by a laser scan point by using the color of         we compute the intensity gradients in the point cloud using
+the nearest neighbor. While more complex rendering meth-            local neighborhoods.
+ods [39] could be used, we found that this strategy already             However, due to the different image resolutions and high
+suffices for feature matching in SfM. To obtain an initial es-      laser scan point density in our dataset, the nearest neigh-
+timate of the scale of the SfM model, we compare the depth          bors of a point p might project to the same pixel in one
+of SfM points projected into the cube maps to the rendered          image and to relatively far away pixels in another image. In
+depth maps.                                                         the former case, the points’ intensity differences are nearly
+Refinement of Laser Scan Alignment. The projection                  constant and do not provide enough information for the op-
+centers of the cube maps correspond to the origin of each           timization. In the latter case, under-sampling of the image
+laser scan. Thus, the SfM reconstruction from the previ-            leads to a meaningless intensity gradient. Consequently, we
+ous step provides an initial relative alignment of the scans.       sample the neighborhoods at appropriate point cloud reso-
+We refine this alignment by jointly optimizing the rigid            lutions. We only add the projection of a point p to an image
+body poses of all laser scans via point-to-plane ICP [2] on         as a constraint if all neighbors of p project roughly one pixel
+the point clouds. Visual inspection verified that the result-       away from it. This avoids the discussed case of over- and
+ing alignments are virtually perfect, which can be expected         under-sampling. To create enough constraints between all
+images and for all points, we efficiently sample the neigh-
+borhoods from a pre-calculated multi-resolution point cloud                                                    S
+and we use a multi-resolution scheme over image pyramids.                                                  t
+For each point projection to an image, the image pyramid                                  L
+level with the most suitable resolution is considered. This
+                                                                     Figure 3. Sketch of the accuracy evaluation given a single scan
+increases the chance that a gradient g is compared against           point, S, measured from the laser scanner position L, with evalua-
+at least two images and influences the respective camera pa-         tion threshold t. Reconstruction points within the green region are
+rameters. Further, the multi-resolution scheme over images           accurate, points in the red region are inaccurate, and points in the
+enlarges the convergence basin of the optimization. We pro-          blue region are unobserved.
+cess the image pyramid coarse-to-fine while coarser resolu-
+tions are kept in the objective function.                                In practice, we found this to result in a good relative
+    More concretely, we associate each point cloud level l           alignment between images, but not necessarily in a good
+with a point radius rl in 3D. Since the changes made by              absolute alignment to the laser scans. We thus add an ad-
+the refinement of the image alignment will be small, we use          ditional cost term in analogy to Eq. 2 which minimizes the
+the initial image alignment to determine the relevant point          intensity differences in the images wrt. the intensity differ-
+cloud levels. For each laser scan point p and each pyramid           ences measured by the laser scanner. This term lowers drift
+level h of each image i ∈ I(p), we determine the radius              by using the laser scan colors as a global reference. As a
+r(i, h, p) of a 3D sphere around the 3D point p such that the        limitation, it creates a dependency on the laser scan col-
+projection of the sphere into image i at this pyramid level          ors, which themselves may not be perfectly aligned to the
+has a diameter of ∼1 pixel. To define the radius r0 at the           scan geometry. However, we empirically found the result-
+highest point cloud resolution, we use the minimum radius            ing alignments to be of satisfying quality for our needs.
+among all points and images. The radius of level l + 1 is
+defined as 2rl . The minimum and maximum radii r(i, h, p)            4. Tasks and Evaluation Protocols
+of a point p define an interval, and a point is associated
+with level l if rl falls into this range. At each level l, we           Our benchmark consists of three scenarios correspond-
+greedily merge points within 2rl using the mean position as          ing to different tasks for (multi-view) stereo algorithms:
+the position of the resulting 3D point. For each resulting             • High-resolution multi-view stereo with relatively few
+point, we find its 25 nearest neighbors and randomly select              images recorded by a DSLR camera.
+5 of them to define the point’s neighborhood. If the average
+                                                                       • Low-resolution multi-view stereo on video data
+intensity difference between a point and its neighbors is less
+                                                                         (“many-view”) recorded with a multi-camera rig.
+than 5, we drop the point as it lies in a homogeneous region
+and thus would not contribute to the optimization.                     • Low-resolution two-view stereo on camera pairs of a
+    Let pj denote the j-th neighbor of point p. The variables            multi-camera rig.
+g(p, pj ) are now associated to pairs of points and represent        Each frame of the two-view stereo evaluation consists of all
+their gradient. We modify the cost function in Eq. 1 to take         4 images taken at the same time by the multi-camera rig.
+the following form                                                   These 4 cameras form 2 stereo pairs such that both cameras
+             v
+               u 5
+                                                                    in each pair have the same FOV. Both multi-view stereo sce-
+ X X uX                                                        2     narios are evaluated in 3D with the same evaluation proto-
+            ρt       (Ii (πi (pj )) − Ii (πi (p)) − g(p, pj )) 
+                                                                     col, while the two-view stereo scenario is evaluated in 2D
+p∈P i∈I(p)       j=1
+                                                          (2)        with a separate protocol, as detailed in the following.
+where P contains all points of the multi-resolution point            Multi-View Stereo Evaluation Protocol. We compare
+cloud and ρ[·] is the robust Huber loss function. Note that,         the MVS reconstruction, given as a point cloud, against the
+in contrast to Eq. 1, we now represent and optimize for the          laser scan ground truth of the scene. Only laser scan points
+gradients g of each 3D point rather than the point intensity         visible in at least two images are used for evaluation.
+c. Details on implementing this cost function can be found              We evaluate the reconstruction in terms of accuracy and
+in the supplementary material, which also provides an illus-         completeness. Both measures are evaluated over a range
+tration of the multi-resolution scheme.                              of distance thresholds from 1cm to 50cm. To determine
+    For the sequences recorded with the multi-camera rig,            completeness, we measure the distance of each ground truth
+we ensure that the relative poses between the cameras in the         3D point to its closest reconstructed point. Completeness is
+rig remain consistent for all images during optimization by a        defined as the amount of ground truth points for which this
+rigid parametrization of the relative camera poses. To speed         distance is below the evaluation threshold.
+up the optimization, we optimize g(p, pj ) and the camera               Accuracy is defined as the fraction of reconstruction
+parameters alternatingly, as proposed in [47].                       points which are within a distance threshold of the ground
+Figure 4. Two examples of laser scan renderings colored by differently aligned images. Top row, from left to right: Original laser scan
+colors, initial alignment, 7-DoF ICP alignment, our alignment. Bottom row: Difference of each image to the laser scan image. Note that
+the different lighting causes a significant color difference.
+
+
+truth points. Since our ground truth is incomplete, care
+has to be taken to prevent potentially missing ground truth
+points from distorting the results. Consequently, we seg-
+ment the reconstruction into occupied, free, and unobserved
+space using an approximation of the laser scanner beams
+(c.f . Fig. 3). We model the shape of the laser beam of each
+ground truth point as a truncated cone. We make the as-
+sumption that the beam volume from the laser scanner ori-
+gin to a scan point contains only free space.
+    We extend the beam volume beyond each ground truth
+point by the intersection of the extended beam cone with a
+sphere centered at the observed point. The sphere’s radius
+is equal to the evaluation tolerance t. Reconstructed points          Figure 5. Top row: Overlays of ground truth depth (colored) onto
+outside all extended beam volumes are in unobserved space             images recorded by the multi-camera rig, showing the accuracy of
+and are therefore discarded in the evaluation. Among the re-          our alignments. Middle & bottom row: Detailed views for rig and
+maining reconstruction points, points are classified as accu-         DLSR images, respectively. The ground truth depth is sparse at
+rate if they are within the extended beam volume and within           full DSLR resolution and not all objects are scanned completely.
+radius t of a ground truth point. Accuracy is then defined as
+the ratio of accurate points out of all points while ignoring         truth is given by the laser scan points projected into the rec-
+unobserved points.                                                    tified image. Occluded points are dropped using the same
+    The definitions of accuracy and completeness provided             occlusion reasoning as in our image alignment procedure.
+above are susceptible to the densities of both the recon-             The left disparity image is used for evaluation.
+structed and the ground truth point clouds. For instance,                 For this scenario, we evaluate the same metrics used in
+an adversary could uniformly fill the 3D space with points            the Middlebury benchmark [32]: We measure the percent-
+to achieve high completeness while creating comparatively             age of pixels having a disparity error larger than a threshold,
+many more copies of a single reconstructed point known                for thresholds of 0.5, 1, 2, and 4 disparities (bad 0.5 - bad 4),
+to be accurate to also achieve high accuracy. We thus dis-            the average absolute error in pixels (avgerr), the root-mean-
+cretized the space into voxels with small side length. Both           square disparity error in pixels (rms), and the error quantiles
+measures are first evaluated for each voxel individually. We          in pixels for 50%, 90%, 95%, and 99% (A50 - A99).
+then report the averages over all voxels. To measure a
+voxel’s completeness, we use the ground truth points in it            5. Results
+and all reconstructed points, even those outside the voxel.              First, we evaluate the accuracy of our image registration
+These roles are reversed to measure accuracy.                         pipeline. Due to lack of more precise measurements, this
+    Since both accuracy and completeness are important for            evaluation is performed qualitatively. In Sec. 5.2, we then
+measuring the quality of a reconstruction, we use the F1              evaluate state-of-the-art algorithms on our benchmark and
+score as a single measure to rank the results. Given accuracy         discuss the gained insights.
+(precision) p and completeness (recall) r, the F1 score is
+defined as the harmonic mean 2 · (p · r)/(p + r).                     5.1. Image Registration
+Two-View Stereo Evaluation Protocol. The two-view                        We compare our alignment strategy to the initial align-
+stereo evaluation is performed on rectified stereo pairs gen-         ment obtained after the laser scan refinement step and to a
+erated from the images of the multi-camera rig. The ground            baseline method. The latter refines the initial camera poses
+                                                                    Method Strecha Ours                Method          Middle. KITTI Ours
+through a 7-DoF ICP alignment (optimizing for position,             PMVS   3 (68.9) 3 (41.2)           SPS-Stereo [44] 5 (29.3) 2 (5.3) 1 (3.4)
+rotation and scale) between the reconstructed SfM points            Gipuma 4 (48.8) 4 (33.2)           MeshStereo [46] 2 (14.9) 4 (8.4) 3 (7.1)
+                                                                    COLMAP 2 (75.9) 1 (64.7)           SGM+D. [13, 42] 4 (29.2) 3 (6.3) 2 (5.5)
+and the laser scans. For each alignment result, we project all      CMPMVS 1 (78.2) 2 (48.9)           MC-CNN [45]     1 (10.1) 1 (3.9) 4 (8.9)
+images onto the laser scans and compute the average color                                              ELAS [7]        3 (25.7) 5 (9.7) 5 (10.5)
+for each scan point to create the qualitative evaluations in                   (a) MVS                 (b) Stereo (% Bad Pixels)
+Fig. 4. As can be seen, the baseline significantly improves         Table 2. Relative rankings on different benchmarks, demonstrating
+the initial alignment. In turn, our alignment strategy clearly      the difference between ours and existing datasets.
+improves upon the baseline.
+   Fig. 5 shows overlays of images with their ground truth          Method      Indoor            Outdoor             Mobile             DSLR
+                                                                    CMPMVS 67.2 / 47.3 / 55.5 44.2 / 40.0 / 42.0 14.4 / 7.4 / 9.8 71.6 / 57.6 / 63.8
+depth map computed from the laser scans. Depth edges are            COLMAP 90.2 / 51.1 / 65.2 80.9 / 53.1 / 64.1 69.5 / 41.2 / 51.8 91.7 / 56.2 / 69.7
+not used in our alignment procedure, thus they serve as a           Gipuma 74.9 / 24.0 / 36.3 52.8 / 20.8 / 29.9 31.1 / 13.4 / 18.7 76.5 / 25.9 / 38.7
+                                                                    PMVS   85.1 / 28.0 / 42.1 72.2 / 27.8 / 40.1 48.7 / 18.8 / 27.2 90.1 / 31.3 / 46.5
+good indicator for the quality of the alignment. We observe
+that for both the DSLR images as well as the camera rig             Table 3. Category-based MVS evaluation showing accuracy / com-
+images, the alignment is generally pixel accurate.                  pleteness / F1 score (in %) at a 2cm evaluation threshold.
+
+                                                                    Method          bad 0.5 bad 1 bad 2 bad 4 avgerr rms A50 A90 A95 A99
+5.2. Evaluation of Stereo Methods                                   SPS-Stereo [44]  57.42 22.25 4.28 2.00 0.95 2.11 1.08 2.40 3.60 8.77
+                                                                    SGM+D. [13, 42] 58.56 24.02 7.48 4.51 1.34 3.23 2.47 3.61 8.54 12.95
+                                                                    MeshStereo [46] 29.91 13.98 7.57 4.67 0.90 2.21 1.37 2.44 3.65 9.73
+High-Resolution Multi-View Scenario. For this scenario,             MC-CNN [45]      33.79 14.74 9.26 8.46 8.52 17.14 49.81 30.01 30.49 52.19
+we evaluate the popular patch-based PMVS [4], Gipuma                ELAS [7]         42.26 22.77 11.54 5.05 1.12 3.11 4.87 5.26 4.49 11.31
+[5], which is a well-performing PatchMatch-based vari-              SPS-Stereo [44]    56.91 21.29 3.43    1.43   0.83 1.61 2.22 1.36 2.11 6.52
+                                                                    SGM+D. [13, 42]    57.79 22.43 5.48    2.65   1.03 2.43 1.14 7.05 6.46 10.69
+ant [26], the multi-view stereo method based on pixel-              MeshStereo [46]    28.99 13.23 7.09    4.38   0.87 2.18 1.61 2.55 4.46 10.65
+wise view selection in COLMAP [35], and CMPMVS [16],                MC-CNN [45]        32.51 13.85 8.92    8.59   8.48 17.03 49.01 27.63 28.79 45.79
+                                                                    ELAS [7]           41.20 21.56 10.50   4.56   1.06 3.03 4.54 3.98 5.24 9.68
+which aims at reconstructing weakly supported surfaces.
+The results are shown in Fig. 6. We observe that for                Table 4. Results of two-view stereo methods on our dataset. We
+most scenes, COLMAP and PMVS outperform Gipuma and                  show the metric averages over all stereo pairs for all regions (up-
+CMPMVS in terms of accuracy. In terms of completeness,              per part) and non-occluded regions (lower part). The tables are
+Gipuma achieves a low score for, e.g., courtyard, electro,          ordered by the bad 2 criterion.
+and delivery area, since its view selection scheme is tai-
+lored to object-centric scenes. For most datasets, CMP-             rate since it ran out of memory while using all images. The
+MVS and COLMAP clearly achieve the best completeness.               results are shown in Fig. 7. As can be seen, these datasets
+COLMAP still struggles for weakly textured surfaces and             challenge all algorithms, resulting in lower accuracy scores
+thin structures, such as electro (c.f . Fig. 8c), kicker, office,   compared to the high-quality datasets. PMVS and Gipuma
+and pipes. As shown in Fig. 8d, CMPMVS is able to cor-              produce very incomplete and noisy results while CMPMVS
+rectly interpolate some of the weakly textured surfaces, but        fails completely. This demonstrates the fact that they do not
+also hallucinates structures in other parts.                        properly exploit the high view redundancy in the videos.
+    Fig. 8b shows the cumulative completeness score over            COLMAP achieves relatively better results, but there is still
+all methods for the office scene, illustrating that all existing    significant room for improvement in terms of absolute num-
+techniques struggle to achieve high completeness for poorly         bers. Furthermore, all methods take in the order of several
+textured surfaces. We believe that solving this hard but im-        minutes to an hour to compute the sequences, underlining
+portant problem requires higher-level scene understanding.          the need for more efficient algorithms that can operate in
+Our benchmark provides a variety of scenes that can be used         real-time on a mobile device.
+to evaluate such approaches. In general, we observe that            Dataset Diversity. Tab. 3 provides an analysis of the differ-
+there is significant room for improvement on our datasets.          ent MVS algorithms for different scenario categorizations.
+    Tab. 2a compares the relative performance of the dif-           COLMAP performs best on average as well as best for most
+ferent methods on Strecha [40] and our new benchmark,               individual categories. We also observe that the performance
+ranked based on [35] and using the F1 score, respectively,          of the algorithms can vary significantly between the differ-
+with a 2cm evaluation threshold used in both cases. Evi-            ent scenarios, indicating the need for benchmarks such as
+dently, good performance on the two datasets is not nec-            ours that cover a wide variety of scenes.
+essarily correlated. We thus conclude that our benchmark
+                                                                    Two-View Scenario. For this scenario, we evaluated five
+contains challenges different from the Strecha dataset.
+                                                                    methods, [7, 44–46] and a version of SGM stereo [13] on
+Low-Resolution Multi-View Scenario. For this scenario,              Daisy descriptors [42]. These include methods belonging
+we evaluate the same methods as for the previous one. For           to the state-of-the-art on KITTI and Middlebury Stereo. We
+Gipuma, we downsampled the videos to one fifth the frame            did not tune their parameters except for setting the maxi-
+                                   courtyard                       delivery area            electro            facade              kicker             meadow              office
+                          100                                  100                 100                100                 100                100                 100
+        acc., comp. [%]
+
+                           80                                   80                  80                 80                  80                 80                  80
+                           60                                   60                  60                 60                  60                 60                  60
+                           40                                   40                  40                 40                  40                 40                  40
+                           20                                   20                  20                 20                  20                 20                  20
+                            0                                    0                   0                  0                   0                  0                   0
+                            10−2      10−1                       10−2    10−1        10−2     10−1      10−2      10−1      10−2     10−1      10−2      10−1      10−2     10−1
+                                     pipes                          playground              relief             relief 2            terrace            terrains
+                          100                100                100                100                100                100
+        acc., comp. [%]
+
+
+
+
+                           80                 80                 80                 80                 80                 80
+                           60                 60                 60                 60                 60                 60
+                           40                 40                 40                 40                 40                 40
+                           20                 20                 20                 20                 20                 20
+                            0 −2        −1
+                                               0 −2        −1
+                                                                  0 −2        −1
+                                                                                     0 −2        −1
+                                                                                                        0 −2        −1
+                                                                                                                           0
+                            10       10        10       10        10       10        10       10        10       10        10−2     10−1
+                               threshold [m]      threshold [m]      threshold [m]      threshold [m]      threshold [m]      threshold [m]
+Figure 6. Evaluation of the high-resolution multi-view scenario (indoor and outdoor datasets). Results for CMPMVS, COLMAP, Gipuma,
+and PMVS are shown as a solid line for accuracy and as a dashed line for completeness.
+                                                                   delivery area            electro            forest          playground             terrains
+                                                               100                100                100                100                100
+                                             acc., comp. [%]
+
+
+
+
+                                                                80                 80                 80                 80                 80
+                                                                60                 60                 60                 60                 60
+                                                                40                 40                 40                 40                 40
+                                                                20                 20                 20                 20                 20
+                                                                 0                  0                  0                  0                  0
+                                                                 10−2     10−1      10−2     10−1      10−2     10−1      10−2     10−1      10−2     10−1
+                                                                    threshold [m]      threshold [m]      threshold [m]      threshold [m]      threshold [m]
+     Figure 7. Multi-view evaluation results in the low-resolution scenario. The interpretation of the plots is the same as in Fig. 6.
+
+                                                                                                                   6. Conclusion
+                                                                                                                       In this paper, we proposed an accurate and robust reg-
+                                                                                                                   istration procedure to align images and laser scans. Using
+                                                                                                                   this algorithm, we created a new and diverse dataset for the
+                                                                                                                   evaluation of two-view and multi-view stereo methods. Our
+                                                                                                                   benchmark differs from existing datasets in several key as-
+          (a) Electro: Laserscan (b) Office: Completeness                                                          pects: We cover a wide variety of scene types and thus re-
+                                                                                                                   quire general solutions which prevent overfitting. In addi-
+                                                                                                                   tion, we provide the first benchmark for hand-held (multi-
+                                                                                                                   view) stereo with consumer-grade cameras. Experimental
+                                                                                                                   results for state-of-the-art algorithms show that our dataset
+                                                                                                                   poses various challenges not yet covered by existing bench-
+                                                                                                                   marks. One of these challenges is efficient processing of
+        (c) Electro: COLMAP (d) Electro: CMPMVS                                                                    large amounts of data, in the form of both high spatial and
+                                                                                                                   high temporal sampling. These challenges are far from be-
+      Figure 8. Qualitative results. See the text for details.
+                                                                                                                   ing solved and there is significant room for improvement.
+                                                                                                                   As a service to the community, we provide the website
+mum number of disparities. The evaluation results are pre-                                                         http://www.eth3d.net for online evaluation and comparison
+sented in Table 4. Table 2b compares the relative rankings                                                         of algorithms.
+of the different approaches on KITTI, Middlebury, and the
+bad 2 non-occluded results of our benchmark. As can be
+seen, the rankings differ significantly between ours and pre-                                                      Acknowledgements. We thank Fatma Güney for running
+vious datasets, indicating that our benchmark complements                                                          several stereo baselines on KITTI and Middlebury, Lukas
+existing ones. In particular, our data requires algorithms to                                                      Meier for the multi-camera rig mount and the Geosensors
+perform well over a wide variety of scenes. It thus encour-                                                        and Engineering Geodesy group at ETH for providing the
+ages general solutions and prevents overfitting. The latter is                                                     laser scanner. Thomas Schöps was supported by a Google
+especially important given the popularity of learning-based                                                        PhD Fellowship. This project received funding from the
+methods: As evident from Tabs. 4 and 2b, [45] performs                                                             European Union’s Horizon 2020 research and innovation
+below average on our benchmark while outperforming all                                                             programme under grant No. 688007 (Trimbot2020). This
+other methods significantly on both Middlebury and KITTI.                                                          project was partially funded by Google Tango.
+References                                                             [22] D. G. Lowe. Distinctive image features from scale-invariant
+                                                                            keypoints. IJCV, 60(2):91–110, 2004. 4
+ [1] D. J. Butler, J. Wulff, G. B. Stanley, and M. J. Black. A         [23] N. Mayer, E. Ilg, P. Haeusser, P. Fischer, D. Cremers,
+     naturalistic open source movie for optical flow evaluation.            A. Dosovitskiy, and T. Brox. A large dataset to train convo-
+     In ECCV, 2012. 2, 3                                                    lutional networks for disparity, optical flow, and scene flow
+ [2] Y. Chen and G. Medioni. Object modelling by registra-                  estimation. In CVPR, 2016. 2
+     tion of multiple range images. Image and vision computing,        [24] M. Menze and A. Geiger. Object scene flow for autonomous
+     10(3):145–155, 1992. 4                                                 vehicles. In CVPR, 2015. 2, 3
+ [3] Y. Furukawa, B. Curless, S. M. Seitz, and R. Szeliski. To-        [25] P. Merrell, P. Mordohai, J.-M. Frahm, and M. Pollefeys.
+     wards internet-scale multi-view stereo. In CVPR, 2010. 1               Evaluation of large scale scene reconstruction. In ICCV,
+ [4] Y. Furukawa and J. Ponce. Accurate, dense, and robust mul-             2007. 3
+     tiview stereopsis. PAMI, 32(8):1362–1376, 2010. 1, 6              [26] C. R. Michael Bleyer and C. Rother. PatchMatch Stereo -
+ [5] S. Galliani, K. Lasinger, and K. Schindler. Massively parallel         Stereo Matching with Slanted Support Windows. In BMVC,
+     multiview stereopsis by surface normal diffusion. In ICCV,             2011. 7
+     2015. 1, 7                                                        [27] Y. Nakamura, T. Matsuura, K. Satoh, and Y. Ohta. Occlusion
+ [6] A. Geiger, P. Lenz, and R. Urtasun. Are we ready for au-               detectable stereo - occlusion patterns in camera matrix. In
+     tonomous driving? The KITTI vision benchmark suite. In                 CVPR, 1996. 2
+     CVPR, 2012. 1, 2, 3                                               [28] P. Ondrúška, P. Kohli, and S. Izadi. MobileFusion: Real-time
+ [7] A. Geiger, M. Roser, and R. Urtasun. Efficient large-scale             Volumetric Surface Reconstruction and Dense Tracking On
+     stereo matching. In ACCV, 2010. 1, 8                                   Mobile Phones. In ISMAR, 2015. 1
+ [8] A. Geiger, J. Ziegler, and C. Stiller. StereoScan: Dense 3D       [29] C. J. Pal, J. J. Weinman, L. C. Tran, and D. Scharstein.
+     reconstruction in real-time. In IV, 2011. 1                            On Learning Conditional Random Fields for Stereo. IJCV,
+ [9] P. Gohl, D. Honegger, S. Omari, M. Achtelik, M. Pollefeys,             99(3):319–337, 2012. 1
+     and R. Siegwart. Omnidirectional Visual Obstacle Detection        [30] S. Pillai, S. Ramalingam, and J. J. Leonard.             High-
+     using Embedded FPGA. In IROS, 2015. 3                                  Performance and Tunable Stereo Reconstruction. In ICRA,
+[10] C. Häne, T. Sattler, and M. Pollefeys. Obstacle detection for         2016. 1
+     self-driving cars using only monocular cameras and wheel          [31] R. B. Rusu, Z. C. Marton, N. Blodow, M. E. Dolha, and
+     odometry. In IROS, 2015. 1                                             M. Beetz. Towards 3d point cloud based object maps for
+[11] C. Häne, C. Zach, J. Lim, A. Ranganathan, and M. Pollefeys.           household environments. RAS, 56(11):927–941, 2008. 4
+     Stereo depth map fusion for robot navigation. In IROS, 2011.      [32] D. Scharstein, H. Hirschmüller, Y. Kitajima, G. Krathwohl,
+     1                                                                      N. Nešić, X. Wang, and P. Westling. High-resolution stereo
+[12] H. Hirschmuller and D. Scharstein. Evaluation of Cost Func-            datasets with subpixel-accurate ground truth. In GCPR,
+     tions for Stereo Matching. In CVPR, 2007. 1                            2014. 1, 2, 3, 6
+[13] H. Hirschmüller. Stereo processing by semiglobal matching        [33] D. Scharstein and R. Szeliski. A taxonomy and evaluation of
+     and mutual information. PAMI, 30(2):328–341, 2008. 8                   dense two-frame stereo correspondence algorithms. IJCV,
+[14] D. Honegger, H. Oleynikova, and M. Pollefeys. Real-time                47:7–42, 2002. 1, 2, 3
+     and low latency embedded computer vision hardware based           [34] D. Scharstein and R. Szeliski. High-accuracy Stereo Depth
+     on a combination of FPGA and mobile CPU. In IROS, 2014.                Maps Using Structured Light. In CVPR, 2003. 1
+     1                                                                 [35] J. L. Schönberger, E. Zheng, M. Pollefeys, and J.-M. Frahm.
+[15] Q. Huang, H. Wang, and V. Koltun. Single-view reconstruc-              Pixelwise view selection for unstructured multi-view stereo.
+     tion via joint analysis of image and shape collections. In             In ECCV, 2016. 1, 4, 7
+     SIGGRAPH, 2015. 4                                                 [36] T. Schöps, T. Sattler, C. Häne, and M. Pollefeys. 3D mod-
+[16] M. Jancosek and T. Pajdla. Multi-view reconstruction pre-              eling on the go: Interactive 3D reconstruction of large-scale
+     serving weakly-supported surfaces. In CVPR, 2011. 7                    scenes on mobile devices. In 3DV, 2015. 1
+[17] R. Jensen, A. Dahl, G. Vogiatzis, E. Tola, and H. Aanæs.          [37] J. L. Schönberger and J.-M. Frahm. Structure-from-motion
+     Large scale multi-view stereopsis evaluation. CVPR, 2014.              revisited. In CVPR, 2016. 4
+     1, 3                                                              [38] S. M. Seitz, B. Curless, J. Diebel, D. Scharstein, and
+[18] M. M. Kazhdan and H. Hoppe. Screened poisson surface                   R. Szeliski. A comparison and evaluation of multi-view
+     reconstruction. SIGGRAPH, 32(3):29, 2013. 4                            stereo reconstruction algorithms. In CVPR, 2006. 1, 2, 3
+[19] A. Knapitsch, J. Park, Q.-Y. Zhou, and V. Koltun. Tanks           [39] D. Sibbing, T. Sattler, B. Leibe, and L. Kobbelt. Sift-realistic
+     and temples: Benchmarking large-scale scene reconstruc-                rendering. In 3DV, 2013. 4
+     tion. SIGGRAPH, 36(4), 2017. 3                                    [40] C. Strecha, W. von Hansen, L. J. V. Gool, P. Fua, and
+[20] K. Kolev, P. Tanskanen, P. Speciale, and M. Pollefeys. Turn-           U. Thoennessen. On benchmarking camera calibration and
+     ing mobile phones into 3D scanners. In CVPR, 2014. 1                   multi-view stereo for high resolution imagery. In CVPR,
+[21] L. Ladicky, P. Sturgess, C. Russell, S. Sengupta, Y. Bastanlar,        2008. 1, 2, 3, 7
+     W. Clocksin, and P. Torr. Joint optimisation for object class     [41] P. Tanskanen, K. Kolev, L. Meier, F. Camposeco, O. Saurer,
+     segmentation and dense stereo reconstruction. In BMVC,                 and M. Pollefeys. Live metric 3D reconstruction on mobile
+     2010. 2                                                                phones. In ICCV, 2013. 1
+[42] E. Tola, V. Lepetit, and P. Fua. Daisy: An efficient dense
+     descriptor applied to wide baseline stereo. PAMI, 32(5):815–
+     830, May 2010. 8
+[43] T. Vaudrey, C. Rabe, R. Klette, and J. Milburn. Differences
+     between stereo and motion behaviour on synthetic and real-
+     world stereo sequences. In IVCNZ, 2008. 2
+[44] K. Yamaguchi, D. McAllester, and R. Urtasun. Efficient joint
+     segmentation, occlusion labeling, stereo and flow estimation.
+     In ECCV, 2014. 8
+[45] J. Zbontar and Y. LeCun. Stereo matching by training a con-
+     volutional neural network to compare image patches. Jour-
+     nal of Machine Learning Research, 17:1–32, 2016. 8
+[46] C. Zhang, Z. Li, Y. Cheng, R. Cai, H. Chao, and Y. Rui.
+     Meshstereo: A global stereo model with mesh alignment reg-
+     ularization for view interpolation. In ICCV, 2015. 8
+[47] Q. Zhou and V. Koltun. Color map optimization for 3d re-
+     construction with consumer depth cameras. In SIGGRAPH,
+     2014. 4, 5
+

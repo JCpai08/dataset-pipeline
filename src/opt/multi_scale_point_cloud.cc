@@ -30,6 +30,8 @@
 #include "opt/multi_scale_point_cloud.h"
 
 #include <Eigen/StdVector>
+#include <chrono>
+#include <cmath>
 #include <glog/logging.h>
 #include <pcl/search/kdtree.h>
 
@@ -38,6 +40,15 @@
 #include "opt/visibility_estimator.h"
 #include "opt/occlusion_geometry.h"
 #include "opt/parameters.h"
+
+namespace {
+
+double SecondsSince(const std::chrono::steady_clock::time_point& start) {
+  return std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - start).count();
+}
+
+}  // namespace
 
 namespace opt {
 
@@ -54,6 +65,11 @@ void MergeClosePoints(float merge_distance,
   out_points->clear();
   out_colors->clear();
   out_scan_indices->clear();
+  out_max_radius->clear();
+  
+  if (in_points->empty()) {
+    return;
+  }
   
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree_(
       new pcl::search::KdTree<pcl::PointXYZ>());
@@ -134,14 +150,23 @@ void ComputeMinMaxPointRadius(const pcl::PointCloud<pcl::PointXYZ>::Ptr& points,
                               const OcclusionGeometry& occlusion_geometry,
                               std::vector<float>* min_radius,
                               std::vector<float>* max_radius) {
+  const auto image_radius_start = std::chrono::steady_clock::now();
   std::vector<PointObservation> observations;
   observations.reserve(1000000);
   visibility_estimator.AppendObservationsForImageNoScale(
       occlusion_geometry, *points,
       image, intrinsics, 1, &observations);
+  LOG(INFO) << "CreateMultiScalePointCloud(): image " << image.image_id
+            << " radius visibility produced " << observations.size()
+            << " observations in " << SecondsSince(image_radius_start) << " s";
   
   for (std::size_t o = 0, end = observations.size(); o < end; ++ o) {
     const PointObservation& observation = observations.at(o);
+    if (observation.point_index >= points->size()) {
+      LOG(ERROR) << "Observation point index out of range: "
+                 << observation.point_index << " >= " << points->size();
+      continue;
+    }
     const pcl::PointXYZ& point = points->at(observation.point_index);
     
     // Approximately find the point radius which projects to 0.5 pixels on the
@@ -237,7 +262,9 @@ void CreateMultiScalePointCloud(
   std::vector<float> max_radius(points->size(),
                                 -1 * std::numeric_limits<float>::infinity());
   
+  const auto radius_estimation_start = std::chrono::steady_clock::now();
   for (const auto& id_and_image : images) {
+    const auto image_start = std::chrono::steady_clock::now();
     const Image& image = id_and_image.second;
     const Intrinsics& intrinsics = intrinsics_list[image.intrinsics_id];
     
@@ -256,18 +283,37 @@ void CreateMultiScalePointCloud(
                                  occlusion_geometry,
                                  &min_radius,
                                  &max_radius));
+    LOG(INFO) << "CreateMultiScalePointCloud(): image " << image.image_id
+              << " radius estimation total " << SecondsSince(image_start)
+              << " s";
   }
+  LOG(INFO) << "CreateMultiScalePointCloud(): radius estimation total "
+            << SecondsSince(radius_estimation_start) << " s";
   float min_radius_value = std::numeric_limits<float>::infinity();
   float max_radius_value = -1 * std::numeric_limits<float>::infinity();
+  std::size_t finite_radius_count = 0;
   for (std::size_t i = 0; i < min_radius.size(); ++ i) {
     float value = min_radius[i];
-    if (value < min_radius_value) {
+    if (std::isfinite(value) && value < min_radius_value) {
       min_radius_value = value;
     }
     value = max_radius[i];
-    if (value > max_radius_value) {
+    if (std::isfinite(value) && value > max_radius_value) {
       max_radius_value = value;
     }
+    if (std::isfinite(min_radius[i]) && std::isfinite(max_radius[i])) {
+      ++ finite_radius_count;
+    }
+  }
+  
+  LOG(INFO) << "CreateMultiScalePointCloud(): "
+            << finite_radius_count << " / " << points->size()
+            << " points observed in at least one image.";
+  if (finite_radius_count == 0) {
+    LOG(ERROR) << "No scan points are visible in the loaded images. Check the "
+               << "input image poses, scan alignment, image base path, and "
+               << "camera_ids_to_ignore.";
+    return;
   }
   
   // Create the multi-resolution point cloud with the previously determined
@@ -295,7 +341,9 @@ void CreateMultiScalePointCloud(
   }
   
   float last_radius = -1;
+  int output_point_scale = 0;
   while (true) {
+    const auto scale_start = std::chrono::steady_clock::now();
     pcl::PointCloud<pcl::PointXYZ>::Ptr new_point_cloud(new pcl::PointCloud<pcl::PointXYZ>());
     std::shared_ptr<std::vector<float>> new_colors(new std::vector<float>());
     std::shared_ptr<std::vector<uint8_t>> new_scan_indices(new std::vector<uint8_t>());
@@ -305,6 +353,7 @@ void CreateMultiScalePointCloud(
     // radius range, and remove old points from the active set if the current
     // radius went out of their radius range.
     if (last_radius > 0) {
+      const auto active_set_update_start = std::chrono::steady_clock::now();
       // Copy over all existing points which are still valid.
       for (std::size_t i = 0; i < last_point_cloud->size(); ++ i) {
         if (radius <= last_max_radius->at(i)) {
@@ -335,9 +384,15 @@ void CreateMultiScalePointCloud(
       new_colors.reset(new std::vector<float>());
       new_scan_indices.reset(new std::vector<uint8_t>());
       new_max_radius.reset(new std::vector<float>());
+      LOG(INFO) << "CreateMultiScalePointCloud(): scale " << output_point_scale
+                << " active set update to " << last_point_cloud->size()
+                << " points in " << SecondsSince(active_set_update_start)
+                << " s";
     }
     
     // Merge close points to avoid overlapping points.
+    const auto merge_start = std::chrono::steady_clock::now();
+    const std::size_t merge_input_size = last_point_cloud->size();
     MergeClosePoints(
         GlobalParameters().merge_distance_factor * radius,
         num_scans,
@@ -349,12 +404,19 @@ void CreateMultiScalePointCloud(
         new_colors.get(),
         new_scan_indices.get(),
         new_max_radius.get());
+    LOG(INFO) << "CreateMultiScalePointCloud(): scale " << output_point_scale
+              << " radius " << radius << " merged " << merge_input_size
+              << " -> " << new_point_cloud->size() << " points in "
+              << SecondsSince(merge_start) << " s";
     
     out_point_radius->push_back(radius);
     out_points->push_back(new_point_cloud);
     out_colors->push_back(*new_colors);
     out_scan_indices->push_back(*new_scan_indices);
     
+    LOG(INFO) << "CreateMultiScalePointCloud(): scale " << output_point_scale
+              << " total " << SecondsSince(scale_start) << " s";
+    ++ output_point_scale;
     last_radius = radius;
     radius *= 2;
     constexpr float kTolerance = 0.99f;

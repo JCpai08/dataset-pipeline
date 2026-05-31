@@ -1,0 +1,39 @@
+# Build directories
+/build_windows/
+/build_RelWithDebInfo/
+/thirdparty_build/
+
+# CMake generated files
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+
+# Visual Studio local files
+/.vs/
+*.suo
+*.user
+*.vcxproj.user
+
+# Compiled artifacts
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.obj
+*.o
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+*.pdf
+
+build_RelWithDebInfo*/
+
+build*/
+thirdparty_build*/
+*.lib
+*.pdb
+*.exe

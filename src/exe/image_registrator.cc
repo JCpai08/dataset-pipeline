@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
   pcl::PointCloud<pcl::PointXYZ>::Ptr occlusion_point_cloud(
       new pcl::PointCloud<pcl::PointXYZ>());
   std::size_t total_point_count = 0;
-  for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
+  for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {  
     total_point_count += scan_cloud->size();
   }
   occlusion_point_cloud->resize(total_point_count);
@@ -175,6 +175,7 @@ int main(int argc, char** argv) {
   opt::Problem problem(occlusion_geometry);
   
   // Load state from COLMAP model.
+  // cameras and images
   if (!io::InitializeStateFromColmapModel(
       state_path,
       image_base_path,
@@ -231,6 +232,7 @@ int main(int argc, char** argv) {
       is_first_scale = false;
     } else {
       // Enable caching observations after finishing on the first scale.
+      // 修改了 使用 cache 的逻辑 每个 scale 进行一次观测计算 后续都使用 缓存更新
       optimizer.set_cache_observations(true);
     }
     

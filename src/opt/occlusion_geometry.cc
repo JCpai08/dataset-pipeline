@@ -76,9 +76,11 @@ bool OcclusionGeometry::AddSplats(const std::string& mesh_file_path,
 bool OcclusionGeometry::AddMesh(const std::string& mesh_file_path,
                                 const Sophus::Sim3f& transformation,
                                 const bool compute_edges) {
-  if(boost::filesystem::extension(mesh_file_path) == ".mlp"){
+  const std::string extension =
+      boost::filesystem::path(mesh_file_path).extension().string();
+  if(extension == ".mlp"){
     return AddMeshMeshLab(mesh_file_path, transformation, compute_edges);
-  }else if(boost::filesystem::extension(mesh_file_path) == ".ply"){
+  }else if(extension == ".ply"){
     const float scale = opt::GlobalParameters().scale_factor;
     Sophus::Sim3f scale_transform = Sophus::Sim3f(Eigen::Matrix4f::Identity() * scale);
     return AddMeshPLY(mesh_file_path, transformation * scale_transform, compute_edges);
@@ -302,10 +304,10 @@ void OcclusionGeometry::MaskOutOcclusionBoundaries(
     const pcl::PointCloud<pcl::PointXYZ>& vertices = *edges_with_face_normals->vertices;
     const Eigen::Matrix<float, 3, Eigen::Dynamic>& face_normals = edges_with_face_normals->face_normals;
 
-    std::size_t size = edges_with_faces.size();
+    const long long size = static_cast<long long>(edges_with_faces.size());
     #pragma omp parallel for
-    for (std::size_t i = 0; i < size; ++ i) {
-      const EdgeWithFaces& edge = edges_with_faces[i];
+    for (long long i = 0; i < size; ++ i) {
+      const EdgeWithFaces& edge = edges_with_faces[static_cast<std::size_t>(i)];
       const Eigen::Vector3f endpoint1 = vertices.at(edge.vertex_index1).getVector3fMap();
       const Eigen::Vector3f endpoint2 = vertices.at(edge.vertex_index2).getVector3fMap();
       const Eigen::Vector3f edge_to_image = image_position - endpoint1;
@@ -501,7 +503,7 @@ void OcclusionGeometry::ComputeEdgeNormalsList(
   
   for (std::size_t face_index = 0; face_index < mesh.polygons.size(); ++ face_index) {
     const pcl::Vertices& polygon_vertices = mesh.polygons.at(face_index);
-    const std::vector<uint32_t>& face_vertices = polygon_vertices.vertices;
+    const auto& face_vertices = polygon_vertices.vertices;
     CHECK_EQ(face_vertices.size(), 3);
 
     
@@ -513,9 +515,15 @@ void OcclusionGeometry::ComputeEdgeNormalsList(
     output->face_normals.col(face_index) = a.cross(b).normalized();
     
     // Add the face's half edges.
-    AddHalfEdge(face_vertices[0], face_vertices[1], face_index, &half_edge_map);
-    AddHalfEdge(face_vertices[1], face_vertices[2], face_index, &half_edge_map);
-    AddHalfEdge(face_vertices[2], face_vertices[0], face_index, &half_edge_map);
+    AddHalfEdge(static_cast<uint32_t>(face_vertices[0]),
+                static_cast<uint32_t>(face_vertices[1]),
+                static_cast<uint32_t>(face_index), &half_edge_map);
+    AddHalfEdge(static_cast<uint32_t>(face_vertices[1]),
+                static_cast<uint32_t>(face_vertices[2]),
+                static_cast<uint32_t>(face_index), &half_edge_map);
+    AddHalfEdge(static_cast<uint32_t>(face_vertices[2]),
+                static_cast<uint32_t>(face_vertices[0]),
+                static_cast<uint32_t>(face_index), &half_edge_map);
   }
   LOG(INFO) << "filtering edge list";
   FilterEdgeList(&half_edge_map, output);
@@ -531,8 +539,8 @@ void OcclusionGeometry::FilterEdgeList(
   std::vector<EdgeWithFaces>& edges_with_faces = output->edges_with_faces;
 
   #pragma omp parallel for shared(edges_with_faces, vertices, face_normals)
-  for(std::size_t b=0; b<half_edge_map->bucket_count();b++)
-  for (auto it = half_edge_map->begin(b); it!= half_edge_map->end(b); ++it){
+  for(long long b = 0; b < static_cast<long long>(half_edge_map->bucket_count()); ++b)
+  for (auto it = half_edge_map->begin(static_cast<std::size_t>(b)); it!= half_edge_map->end(static_cast<std::size_t>(b)); ++it){
     constexpr float kEpsilon = 1e-4;
     const auto& edge_vertices = it->first;
     const auto& normal_vector = it->second;

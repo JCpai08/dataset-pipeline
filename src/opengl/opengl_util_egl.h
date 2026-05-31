@@ -26,14 +26,17 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef _WIN32
 #define EGL_EGLEXT_PROTOTYPES
 #include <EGL/egl.h>
 #include <GL/glx.h>
 #include <EGL/eglext.h>
 #include <EGL/eglplatform.h>
+#endif
 
 namespace opengl {
 
+#ifndef _WIN32
   static const EGLint configAttribs[] = {
         EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
         EGL_BLUE_SIZE, 8,
@@ -52,13 +55,22 @@ namespace opengl {
         EGL_HEIGHT, pbufferHeight,
         EGL_NONE,
   };
+#endif
 
 struct OpenGLContextImpl {
+#ifdef _WIN32
+  void* window;
+  void* device_context;
+  void* rendering_context;
+  bool owns_context;
+  bool needs_glew_initialization;
+#else
   EGLDisplay display;
   EGLContext context;
   EGLSurface surface_read;
   EGLSurface surface_draw;
   bool needs_glew_initialization;
+#endif
 };
 
 }  // namespace opengl

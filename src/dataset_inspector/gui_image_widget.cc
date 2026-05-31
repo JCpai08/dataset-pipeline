@@ -389,14 +389,24 @@ void ImageWidget::paintEvent(QPaintEvent* event) {
       const CostPoint& cost_point = cost_points_[i];
       float relative_cost;
       if (mode_ == Mode::kCostFixed || mode_ == Mode::kCostFixedHighestOnly) {
-        relative_cost = (cost_point.fixed_cost - min_cost_fixed_) / (max_cost_fixed_ - min_cost_fixed_);
+        float cost_range = max_cost_fixed_ - min_cost_fixed_;
+        if (cost_range <= 0) {
+          continue;
+        }
+        relative_cost = (cost_point.fixed_cost - min_cost_fixed_) / cost_range;
       } else if (mode_ == Mode::kCostVariable) {
-        relative_cost = (cost_point.variable_cost - min_cost_variable_) / (max_cost_variable_ - min_cost_variable_);
+        float cost_range = max_cost_variable_ - min_cost_variable_;
+        if (cost_range <= 0) {
+          continue;
+        }
+        relative_cost = (cost_point.variable_cost - min_cost_variable_) / cost_range;
       } else if (mode_ == Mode::kCostFixedPlusVariable) {
-        relative_cost = ((cost_point.fixed_cost + cost_point.variable_cost) -
-                         (min_cost_fixed_ + min_cost_variable_)) /
-                        ((max_cost_fixed_ + max_cost_variable_) -
-                         (min_cost_fixed_ + min_cost_variable_));
+        float min_cost = min_cost_fixed_ + min_cost_variable_;
+        float cost_range = (max_cost_fixed_ + max_cost_variable_) - min_cost;
+        if (cost_range <= 0) {
+          continue;
+        }
+        relative_cost = ((cost_point.fixed_cost + cost_point.variable_cost) - min_cost) / cost_range;
       } else {
         CHECK(false);
         return;
@@ -500,6 +510,8 @@ void ImageWidget::GetObservations() {
   }
   opt::VisibilityEstimator visibility_estimator(problem_);
   cached_all_scale_observations_.clear();
+  cached_all_scale_neighbors_observed_.clear();
+  cached_neighbors_observed_image_id_ = -1;
   visibility_estimator.AppendObservationsForImage(
       *image_, *intrinsics_, 0, &cached_all_scale_observations_);
   cached_observations_image_id_ = image_->image_id;

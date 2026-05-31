@@ -1,8 +1,18 @@
+cmake_minimum_required(VERSION 3.10)
 project(ETH3DDatasetPipeline)
-cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(MSVC)
+  add_definitions(
+    -DGLOG_USE_GLOG_EXPORT
+    -DNOMINMAX
+    -D_USE_MATH_DEFINES
+    -D_HAS_TR1_NAMESPACE=1
+    -D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+endif()
 
 
 # External dependencies.
@@ -23,6 +33,18 @@ include_directories(${GMP_INCLUDE_DIRS})
 find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIRS})
 link_directories(${OPENGL_LIBRARY_DIRS})
+set(DATASET_PIPELINE_OPENGL_LIBRARIES)
+if(TARGET OpenGL::GL)
+  list(APPEND DATASET_PIPELINE_OPENGL_LIBRARIES OpenGL::GL)
+else()
+  list(APPEND DATASET_PIPELINE_OPENGL_LIBRARIES OpenGL::OpenGL)
+endif()
+if(TARGET OpenGL::EGL)
+  list(APPEND DATASET_PIPELINE_OPENGL_LIBRARIES OpenGL::EGL)
+endif()
+if(TARGET OpenGL::GLX)
+  list(APPEND DATASET_PIPELINE_OPENGL_LIBRARIES OpenGL::GLX)
+endif()
 
 # GLEW
 find_package(GLEW REQUIRED)
@@ -34,7 +56,14 @@ include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
 # glog
-find_package(Glog 0.3.4 REQUIRED)
+find_package(glog CONFIG QUIET)
+if(TARGET glog::glog)
+  set(DATASET_PIPELINE_GLOG_LIBRARIES glog::glog)
+else()
+  find_package(Glog 0.3.4 REQUIRED)
+  set(DATASET_PIPELINE_GLOG_LIBRARIES ${GLOG_LIBRARIES})
+  include_directories(${GLOG_INCLUDE_DIRS})
+endif()
 
 # OpenCV
 find_package(OpenCV REQUIRED)
@@ -67,6 +96,7 @@ include_directories(thirdparty/cork/cork)
 include_directories(thirdparty)
 
 # GTest
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 add_subdirectory(thirdparty/gtest-1.8.0)
 enable_testing()
 include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
@@ -85,6 +115,12 @@ endif()
 include_directories(
     ./src
 )
+
+if(WIN32)
+  set(DATASET_PIPELINE_OPENGL_CONTEXT_SOURCE src/opengl/opengl_util_win.cc)
+else()
+  set(DATASET_PIPELINE_OPENGL_CONTEXT_SOURCE src/opengl/opengl_util_egl.cc)
+endif()
 
 
 # Common files: BaseLib.
@@ -118,7 +154,7 @@ add_library(BaseLib
   src/opengl/renderer.cc
   src/opengl/mesh.cc
   src/opengl/opengl_util.cc
-  src/opengl/opengl_util_egl.cc
+  ${DATASET_PIPELINE_OPENGL_CONTEXT_SOURCE}
   src/opengl/shader_program_opengl.cc
   
   src/opt/color_optimizer.cc
@@ -137,19 +173,18 @@ add_library(BaseLib
 )
 target_link_libraries(BaseLib
   ${OpenCV_LIBS}
-  OpenGL::OpenGL
-  OpenGL::EGL)
-target_compile_options(BaseLib PRIVATE -Wno-sign-compare)
+  ${DATASET_PIPELINE_OPENGL_LIBRARIES})
+if(NOT MSVC)
+  target_compile_options(BaseLib PRIVATE -Wno-sign-compare)
+endif()
 set(BASE_LIB_LIBRARIES
   BaseLib
   ${OpenCV_LIBS}
   ${Boost_LIBRARIES}
   ${PCL_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   ${GLEW_LIBRARIES}
-  OpenGL::OpenGL
-  OpenGL::EGL
-  OpenGL::GLX
+  ${DATASET_PIPELINE_OPENGL_LIBRARIES}
 )
 
 
@@ -172,7 +207,9 @@ target_link_libraries(PointCloudEditorLib
   Qt5::Widgets
   Qt5::OpenGL
 )
-target_compile_options(PointCloudEditorLib PRIVATE -Wno-sign-compare)
+if(NOT MSVC)
+  target_compile_options(PointCloudEditorLib PRIVATE -Wno-sign-compare)
+endif()
 
 
 # PointCloudCleaner executable.
@@ -247,11 +284,40 @@ target_link_libraries(DatasetInspector
   opengv
 )
 
+# DatasetPipelineStudio executable.
+add_executable(DatasetPipelineStudio
+  src/exe/dataset_pipeline_studio.cc
+  src/studio/ba_compare_tab.cc
+  src/studio/colmap_model_summary.cc
+  src/studio/main_window.cc
+  src/studio/sfm_model_view.cc
+)
+target_link_libraries(DatasetPipelineStudio
+  ${BASE_LIB_LIBRARIES}
+  Qt5::Widgets
+)
+
 # ImageRegistrator executable
 add_executable(ImageRegistrator
   src/exe/image_registrator.cc
 )
 target_link_libraries(ImageRegistrator
+  ${BASE_LIB_LIBRARIES}
+)
+
+# MultiResPointCloudBenchmark executable.
+add_executable(MultiResPointCloudBenchmark
+  src/exe/multi_res_point_cloud_benchmark.cc
+)
+target_link_libraries(MultiResPointCloudBenchmark
+  ${BASE_LIB_LIBRARIES}
+)
+
+# Neighbor photometric probe executable.
+add_executable(NeighborPhotometricProbe
+  src/exe/neighbor_photometric_probe.cc
+)
+target_link_libraries(NeighborPhotometricProbe
   ${BASE_LIB_LIBRARIES}
 )
 
@@ -270,7 +336,7 @@ add_executable(Test_Camera
 )
 target_link_libraries(Test_Camera
   ${BASE_LIB_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   gtest
   gtest_main
 )
@@ -283,7 +349,7 @@ add_executable(Test_Interpolation
 )
 target_link_libraries(Test_Interpolation
   ${BASE_LIB_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   gtest
   gtest_main
 )
@@ -296,7 +362,7 @@ add_executable(Test_Renderer
 )
 target_link_libraries(Test_Renderer
   ${BASE_LIB_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   gtest
   gtest_main
 )
@@ -309,7 +375,7 @@ add_executable(Test_Problem
 )
 target_link_libraries(Test_Problem
   ${BASE_LIB_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   gtest
   gtest_main
 )
@@ -322,11 +388,13 @@ add_executable(Test_MultiScalePointCloud
 )
 target_link_libraries(Test_MultiScalePointCloud
   ${BASE_LIB_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   gtest
   gtest_main
 )
-target_compile_options(Test_MultiScalePointCloud PRIVATE -Wno-sign-compare)
+if(NOT MSVC)
+  target_compile_options(Test_MultiScalePointCloud PRIVATE -Wno-sign-compare)
+endif()
 add_test(Test_MultiScalePointCloud
   Test_MultiScalePointCloud
 )
@@ -336,7 +404,7 @@ add_executable(Test_ICP
 )
 target_link_libraries(Test_ICP
   ${BASE_LIB_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   gtest
   gtest_main
 )
@@ -351,7 +419,7 @@ add_executable(Test_Alignment
 )
 target_link_libraries(Test_Alignment
   ${BASE_LIB_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   gtest
   gtest_main
 )
@@ -364,11 +432,13 @@ add_executable(Test_IntrinsicsAndPoseOptimizer
 )
 target_link_libraries(Test_IntrinsicsAndPoseOptimizer
   ${BASE_LIB_LIBRARIES}
-  glog
+  ${DATASET_PIPELINE_GLOG_LIBRARIES}
   gtest
   gtest_main
 )
-target_compile_options(Test_IntrinsicsAndPoseOptimizer PRIVATE -Wno-sign-compare)
+if(NOT MSVC)
+  target_compile_options(Test_IntrinsicsAndPoseOptimizer PRIVATE -Wno-sign-compare)
+endif()
 add_test(Test_IntrinsicsAndPoseOptimizer
   Test_IntrinsicsAndPoseOptimizer
 )

@@ -29,6 +29,12 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+#define DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(...) __VA_ARGS__
+#else
+#define DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(...) (__VA_ARGS__)
+#endif
+
 #include <memory>
 #include <Eigen/Core>
 
@@ -215,79 +221,79 @@ CameraBase::Type StringToType(const std::string& type);
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kFOV) {         \
       typedef camera::FisheyeFOVCamera _##object##_type;                  \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kFisheyePolynomial4) { \
       typedef camera::FisheyePolynomial4Camera _##object##_type; \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kFisheyePolynomialTangential) { \
       typedef camera::FisheyePolynomialTangentialCamera _##object##_type; \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kPolynomial) {  \
       typedef camera::PolynomialCamera _##object##_type;                  \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kRadial) {      \
       typedef camera::RadialCamera _##object##_type;                      \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kSimpleRadial) { \
       typedef camera::SimpleRadialCamera _##object##_type;                \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kRadialFisheye) {      \
       typedef camera::RadialFisheyeCamera _##object##_type;               \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kSimpleRadialFisheye) { \
       typedef camera::SimpleRadialFisheyeCamera _##object##_type;         \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kPolynomialTangential) { \
       typedef camera::PolynomialTangentialCamera _##object##_type;        \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kFullOpenCV) { \
       typedef camera::FullOpenCVCamera _##object##_type;                  \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kPinhole) {     \
       typedef camera::PinholeCamera _##object##_type;                     \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kSimplePinhole) { \
       typedef camera::SimplePinholeCamera _##object##_type;               \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else {                                                              \
       LOG(FATAL) << "CHOOSE_CAMERA_TEMPLATE() encountered invalid type."; \
     }                                                                     \
@@ -310,43 +316,43 @@ CameraBase::Type StringToType(const std::string& type);
   {                                                                       \
     if (camera_type == camera::CameraBase::Type::kBenchmark) {            \
       typedef camera::BenchmarkCamera _##camera_type;                     \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kFOV) {           \
       typedef camera::FisheyeFOVCamera _##camera_type;                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kFisheyePolynomial4) { \
       typedef camera::FisheyePolynomial4Camera _##camera_type;            \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kFisheyePolynomialTangential) { \
       typedef camera::FisheyePolynomialTangentialCamera _##camera_type;   \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kPolynomial) {    \
       typedef camera::PolynomialCamera _##camera_type;                    \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kRadial) {        \
       typedef camera::RadialCamera _##camera_type;                        \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kSimpleRadial) {  \
       typedef camera::SimpleRadialCamera _##camera_type;                  \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kRadialFisheye) { \
       typedef camera::RadialFisheyeCamera _##camera_type;                        \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kSimpleRadialFisheye) { \
       typedef camera::SimpleRadialFisheyeCamera _##camera_type;                  \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kPolynomialTangential) { \
       typedef camera::PolynomialTangentialCamera _##camera_type;          \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kFullOpenCV) { \
       typedef camera::FullOpenCVCamera _##camera_type;          \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kPinhole) {       \
       typedef camera::PinholeCamera _##camera_type;                       \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kSimplePinhole) { \
       typedef camera::SimplePinholeCamera _##camera_type;                 \
-      (__VA_ARGS__);                                                      \
+      DATASET_PIPELINE_CAMERA_TEMPLATE_APPLY(__VA_ARGS__);                                                      \
     } else {                                                              \
       LOG(FATAL) << "CHOOSE_CAMERA_TYPE() encountered invalid type.";     \
     }                                                                     \

@@ -185,7 +185,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
   inline Eigen::Vector2f ImageToNormalized(const Eigen::MatrixBase<Derived>& pixel_position) const {
     // Manual implementation of bilinearly filtering the lookup.
     if(undistortion_lookup_){
-      Eigen::Vector2f clamped_pixel = pixel_position.cwiseMin(Eigen::Vector2f(width_ - 1.001f, height_ - 1.00f)).cwiseMax(0);
+      Eigen::Vector2f clamped_pixel = pixel_position.cwiseMin(Eigen::Vector2f(width_ - 1.001f, height_ - 1.001f)).cwiseMax(0);
       Eigen::Vector2i int_pos = clamped_pixel.cast<int>();
       Eigen::Vector2f factor = clamped_pixel - int_pos.cast<float>();
       Eigen::Vector2f top_left = UndistortionLookup(int_pos.x(), int_pos.y());

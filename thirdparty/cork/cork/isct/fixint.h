@@ -45,11 +45,7 @@
 
 
 
-#ifdef _WIN32
-#include <mpir.h>
-#else
 #include <gmp.h>
-#endif
 
 #include <iostream>
 #include <iomanip>

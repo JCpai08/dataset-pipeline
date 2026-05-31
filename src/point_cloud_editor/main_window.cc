@@ -30,21 +30,37 @@
 #include "point_cloud_editor/main_window.h"
 
 #include <glog/logging.h>
+#include <fstream>
 #include <pcl/io/ply_io.h>
+#include <fstream>
 #include <QBoxLayout>
+#include <fstream>
 #include <QComboBox>
+#include <fstream>
 #include <QOpenGLWidget>
+#include <fstream>
 #include <QWidget>
+#include <fstream>
 #include <QMessageBox>
+#include <fstream>
 #include <QStatusBar>
+#include <fstream>
 #include <QUrl>
+#include <fstream>
 #include <QMenu>
+#include <fstream>
 #include <QFileDialog>
+#include <fstream>
 #include <QLabel>
+#include <fstream>
 #include <QSlider>
+#include <fstream>
 #include <QGridLayout>
+#include <fstream>
 #include <QLineEdit>
+#include <fstream>
 #include <QMimeData>
+#include <fstream>
 
 #include "geometry/local_statistical_outlier_removal.h"
 #include "io/meshlab_project.h"

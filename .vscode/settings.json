@@ -1,0 +1,4 @@
+{
+  // Use Alt for adding multiple cursors so Ctrl+click remains Go to Definition.
+  "editor.multiCursorModifier": "alt"
+}

@@ -28,6 +28,7 @@
 
 
 #include <iostream>
+#include <fstream>
 #include <unordered_map>
 #include <string>
 #include <unordered_set>
@@ -250,6 +251,8 @@ bool SaveScaledMeshLabProjectFile(
   
   XMLDocument doc;
 
+  doc.InsertEndChild(doc.NewUnknown("DOCTYPE MeshLabDocument"));
+
   XMLElement* xml_meshlabproject = doc.NewElement("MeshLabProject");
   doc.InsertEndChild(xml_meshlabproject);
   
@@ -259,6 +262,8 @@ bool SaveScaledMeshLabProjectFile(
   for (const ScanPose& pose : scan_poses) {
     XMLElement* xml_mlmesh = doc.NewElement("MLMesh");
     xml_mlmesh->SetAttribute("label", pose.scan_filename.c_str());
+    xml_mlmesh->SetAttribute("idInFile", "-1");
+    xml_mlmesh->SetAttribute("visible", "1");
     boost::filesystem::path scan_path =
         boost::filesystem::path(scans_path) / pose.scan_filename;
     xml_mlmesh->SetAttribute(
@@ -268,29 +273,53 @@ bool SaveScaledMeshLabProjectFile(
     
     XMLElement* xml_mlmatrix44 = doc.NewElement("MLMatrix44");
     std::ostringstream mlmatrix44_stream;
-    mlmatrix44_stream << std::endl;
+    mlmatrix44_stream << "\n";
     // The spaces at the end are important, MeshLab will crash when omitted.
     mlmatrix44_stream << pose.global_T_scan_rotation(0, 0) << " "
                       << pose.global_T_scan_rotation(0, 1) << " "
                       << pose.global_T_scan_rotation(0, 2) << " "
-                      << scaling_factor * pose.global_T_scan_translation(0) << " " << std::endl;
+                      << scaling_factor * pose.global_T_scan_translation(0) << " \n";
     mlmatrix44_stream << pose.global_T_scan_rotation(1, 0) << " "
                       << pose.global_T_scan_rotation(1, 1) << " "
                       << pose.global_T_scan_rotation(1, 2) << " "
-                      << scaling_factor * pose.global_T_scan_translation(1) << " " << std::endl;
+                      << scaling_factor * pose.global_T_scan_translation(1) << " \n";
     mlmatrix44_stream << pose.global_T_scan_rotation(2, 0) << " "
                       << pose.global_T_scan_rotation(2, 1) << " "
                       << pose.global_T_scan_rotation(2, 2) << " "
-                      << scaling_factor * pose.global_T_scan_translation(2) << " " << std::endl;
-    mlmatrix44_stream << "0 0 0 1 " << std::endl;
+                      << scaling_factor * pose.global_T_scan_translation(2) << " \n";
+    mlmatrix44_stream << "0 0 0 1 \n";
     xml_mlmatrix44->SetText(mlmatrix44_stream.str().c_str());
     xml_mlmesh->InsertEndChild(xml_mlmatrix44);
+
+    XMLElement* xml_rendering_option = doc.NewElement("RenderingOption");
+    xml_rendering_option->SetAttribute("pointSize", "3");
+    xml_rendering_option->SetAttribute("wireColor", "64 64 64 255");
+    xml_rendering_option->SetAttribute("wireWidth", "1");
+    xml_rendering_option->SetAttribute("solidColor", "192 192 192 255");
+    xml_rendering_option->SetAttribute("pointColor", "252 233 79 255");
+    xml_rendering_option->SetAttribute("boxColor", "234 234 234 255");
+    xml_rendering_option->SetText("000111010000000000000000000000000000000010100000000100111010110000001101");
+    xml_mlmesh->InsertEndChild(xml_rendering_option);
   }
   
-  if (doc.SaveFile(meshlab_project_path.c_str()) != tinyxml2::XML_NO_ERROR) {
+  XMLElement* xml_rastergroup = doc.NewElement("RasterGroup");
+  xml_meshlabproject->InsertEndChild(xml_rastergroup);
+  
+  XMLPrinter printer;
+  doc.Print(&printer);
+  std::string output_text = printer.CStr();
+  std::string::size_type pos = 0;
+  while ((pos = output_text.find("\r\n", pos)) != std::string::npos) {
+    output_text.replace(pos, 2, "\n");
+    ++ pos;
+  }
+
+  std::ofstream output_stream(meshlab_project_path, std::ios::out | std::ios::binary);
+  if (!output_stream) {
     std::cout << "Could not save MeshLab project: " << meshlab_project_path << std::endl;
     return false;
   }
+  output_stream << output_text;
   return true;
 }
 

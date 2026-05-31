@@ -41,25 +41,31 @@ class ObservationsCache {
       const std::string& observed_point_indices_folder_path,
       VisibilityEstimator* visibility_estimator,
       Problem* problem);
-  
+
+  // Creates an in-memory observations cache from already computed observations.
+  ObservationsCache(
+      const IndexedScaleObservationsVectors& image_id_to_observations,
+      Problem* problem);
+
   // Returns the observations for the points which are assumed to be visible.
   void GetObservations(
       int border_size,
-      IndexedScaleObservationsVectors* image_id_to_observations);
-  
+      IndexedScaleObservationsVectors* image_id_to_observations,
+      bool print_progress = false);
+
  private:
   void LoadObservedPointIndices(
       const std::string& path);
-  
+
   void DetermineAndSaveObservedPointIndices(
       const std::string& path, 
       VisibilityEstimator* visibility_estimator);
-  
+
   // Cached visible point indices for each image.
   // Indexed by: [image_id][point_scale][visible_point_index] .
   // Provides: point_index (at this point_scale).
   std::unordered_map<int, std::vector<std::vector<std::size_t>>> image_id_to_visibility_lists_;
-  
+
   Problem* problem_;  // Not owned.
 };
 

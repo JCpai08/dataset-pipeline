@@ -764,12 +764,12 @@ bool UpdateIntrinsicsAndPosesInColmapExport(
   // Copy 3D points.
   boost::filesystem::copy_file((boost::filesystem::path(existing_colmap_export_path) / "points3D.txt").string(),
                                (boost::filesystem::path(updated_colmap_export_path) / "points3D.txt").string(),
-                               boost::filesystem::copy_option::overwrite_if_exists);
+                               boost::filesystem::copy_options::overwrite_existing);
   
 //   // Copy project file.
 //   boost::filesystem::copy_file((boost::filesystem::path(existing_colmap_export_path) / "project.ini").string(),
 //                                (boost::filesystem::path(updated_colmap_export_path) / "project.ini").string(),
-//                                boost::filesystem::copy_option::overwrite_if_exists);
+//                                boost::filesystem::copy_options::overwrite_existing);
   
   if (non_matched_images_count > 0) {
     LOG(WARNING) << "Could not match " << non_matched_images_count << " images in the state with a colmap image! Please check whether the paths are correct.";

@@ -40,7 +40,7 @@
 #define PCL_COMMON_TWO_PASS_CENTROID_H_
 
 #include <pcl/point_cloud.h>
-#include <pcl/point_traits.h>
+#include <pcl/point_struct_traits.h>
 #include <pcl/PointIndices.h>
 #include <pcl/cloud_iterator.h>
 

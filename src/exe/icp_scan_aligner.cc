@@ -27,6 +27,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
+#include <fstream>
 #include <iostream>
 #include <unordered_map>
 #include <string>
@@ -104,6 +105,8 @@ bool LoadMeshLabProject(const std::string& path, ObjectPtrVector* objects) {
 bool WriteMeshLabProject(const std::string& path, const ObjectPtrVector& objects) {
   XMLDocument doc;
 
+  doc.InsertEndChild(doc.NewUnknown("DOCTYPE MeshLabDocument"));
+
   XMLElement* xml_meshlabproject = doc.NewElement("MeshLabProject");
   doc.InsertEndChild(xml_meshlabproject);
   
@@ -113,25 +116,51 @@ bool WriteMeshLabProject(const std::string& path, const ObjectPtrVector& objects
   for (const ObjectPtr& object_ptr : objects) {
     XMLElement* xml_mlmesh = doc.NewElement("MLMesh");
     xml_mlmesh->SetAttribute("label", object_ptr->label.c_str());
+    xml_mlmesh->SetAttribute("idInFile", "-1");
+    xml_mlmesh->SetAttribute("visible", "1");
     xml_mlmesh->SetAttribute("filename", object_ptr->filename.c_str());
     xml_meshgroup->InsertEndChild(xml_mlmesh);
     
     XMLElement* xml_mlmatrix44 = doc.NewElement("MLMatrix44");
     std::ostringstream mlmatrix44_stream;
-    mlmatrix44_stream << std::endl;
+    mlmatrix44_stream << "\n";
     // The spaces at the end are important, MeshLab will crash otherwise.
-    mlmatrix44_stream << object_ptr->R(0, 0) << " " << object_ptr->R(0, 1) << " " << object_ptr->R(0, 2) << " " << object_ptr->T(0) << " " << std::endl;
-    mlmatrix44_stream << object_ptr->R(1, 0) << " " << object_ptr->R(1, 1) << " " << object_ptr->R(1, 2) << " " << object_ptr->T(1) << " " << std::endl;
-    mlmatrix44_stream << object_ptr->R(2, 0) << " " << object_ptr->R(2, 1) << " " << object_ptr->R(2, 2) << " " << object_ptr->T(2) << " " << std::endl;
-    mlmatrix44_stream << "0 0 0 1 " << std::endl;
+    mlmatrix44_stream << object_ptr->R(0, 0) << " " << object_ptr->R(0, 1) << " " << object_ptr->R(0, 2) << " " << object_ptr->T(0) << " \n";
+    mlmatrix44_stream << object_ptr->R(1, 0) << " " << object_ptr->R(1, 1) << " " << object_ptr->R(1, 2) << " " << object_ptr->T(1) << " \n";
+    mlmatrix44_stream << object_ptr->R(2, 0) << " " << object_ptr->R(2, 1) << " " << object_ptr->R(2, 2) << " " << object_ptr->T(2) << " \n";
+    mlmatrix44_stream << "0 0 0 1 \n";
     xml_mlmatrix44->SetText(mlmatrix44_stream.str().c_str());
     xml_mlmesh->InsertEndChild(xml_mlmatrix44);
+
+    XMLElement* xml_rendering_option = doc.NewElement("RenderingOption");
+    xml_rendering_option->SetAttribute("pointSize", "3");
+    xml_rendering_option->SetAttribute("wireColor", "64 64 64 255");
+    xml_rendering_option->SetAttribute("wireWidth", "1");
+    xml_rendering_option->SetAttribute("solidColor", "192 192 192 255");
+    xml_rendering_option->SetAttribute("pointColor", "252 233 79 255");
+    xml_rendering_option->SetAttribute("boxColor", "234 234 234 255");
+    xml_rendering_option->SetText("000111010000000000000000000000000000000010100000000100111010110000001101");
+    xml_mlmesh->InsertEndChild(xml_rendering_option);
   }
-  
-  if (doc.SaveFile(path.c_str()) != tinyxml2::XML_NO_ERROR) {
+
+  XMLElement* xml_rastergroup = doc.NewElement("RasterGroup");
+  xml_meshlabproject->InsertEndChild(xml_rastergroup);
+
+  XMLPrinter printer;
+  doc.Print(&printer);
+  std::string output_text = printer.CStr();
+  std::string::size_type pos = 0;
+  while ((pos = output_text.find("\r\n", pos)) != std::string::npos) {
+    output_text.replace(pos, 2, "\n");
+    ++ pos;
+  }
+
+  std::ofstream output_stream(path, std::ios::out | std::ios::binary);
+  if (!output_stream) {
     std::cout << "Could not save MeshLab project: " << path << std::endl;
     return false;
   }
+  output_stream << output_text;
   return true;
 }
 

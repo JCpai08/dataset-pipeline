@@ -28,6 +28,7 @@
 
 #include "io/meshlab_project.h"
 
+#include <fstream>
 #include <thirdparty/tinyxml2/tinyxml2.h>
 #include <Eigen/Core>
 #include "opt/parameters.h"
@@ -89,6 +90,8 @@ bool ReadMeshLabProject(const std::string& project_file_path, MeshLabMeshInfoVec
 bool WriteMeshLabProject(const std::string& project_file_path, const MeshLabMeshInfoVector& meshes) {
   XMLDocument doc;
 
+  doc.InsertEndChild(doc.NewUnknown("DOCTYPE MeshLabDocument"));
+
   XMLElement* xml_meshlabproject = doc.NewElement("MeshLabProject");
   doc.InsertEndChild(xml_meshlabproject);
   
@@ -98,24 +101,53 @@ bool WriteMeshLabProject(const std::string& project_file_path, const MeshLabMesh
   for (const MeshLabProjectMeshInfo& mesh : meshes) {
     XMLElement* xml_mlmesh = doc.NewElement("MLMesh");
     xml_mlmesh->SetAttribute("label", mesh.label.c_str());
+    xml_mlmesh->SetAttribute("idInFile", "-1");
+    xml_mlmesh->SetAttribute("visible", "1");
     xml_mlmesh->SetAttribute("filename", mesh.filename.c_str());
     xml_meshgroup->InsertEndChild(xml_mlmesh);
     
     XMLElement* xml_mlmatrix44 = doc.NewElement("MLMatrix44");
     std::ostringstream mlmatrix44_stream;
-    mlmatrix44_stream << std::endl;
+    mlmatrix44_stream << "\n";
     // The spaces at the end are important. If omitted, MeshLab will crash when
     // opening the file.
     Eigen::Matrix<float, 3, 4> M = mesh.global_T_mesh.matrix3x4() / opt::GlobalParameters().scale_factor;
-    mlmatrix44_stream << M(0, 0) << " " << M(0, 1) << " " << M(0, 2) << " " << M(0, 3) << " " << std::endl;
-    mlmatrix44_stream << M(1, 0) << " " << M(1, 1) << " " << M(1, 2) << " " << M(1, 3) << " " << std::endl;
-    mlmatrix44_stream << M(2, 0) << " " << M(2, 1) << " " << M(2, 2) << " " << M(2, 3) << " " << std::endl;
-    mlmatrix44_stream << "0 0 0 1 " << std::endl;
+    mlmatrix44_stream << M(0, 0) << " " << M(0, 1) << " " << M(0, 2) << " " << M(0, 3) << " \n";
+    mlmatrix44_stream << M(1, 0) << " " << M(1, 1) << " " << M(1, 2) << " " << M(1, 3) << " \n";
+    mlmatrix44_stream << M(2, 0) << " " << M(2, 1) << " " << M(2, 2) << " " << M(2, 3) << " \n";
+    mlmatrix44_stream << "0 0 0 1 \n";
     xml_mlmatrix44->SetText(mlmatrix44_stream.str().c_str());
     xml_mlmesh->InsertEndChild(xml_mlmatrix44);
+
+    XMLElement* xml_rendering_option = doc.NewElement("RenderingOption");
+    xml_rendering_option->SetAttribute("pointSize", "3");
+    xml_rendering_option->SetAttribute("wireColor", "64 64 64 255");
+    xml_rendering_option->SetAttribute("wireWidth", "1");
+    xml_rendering_option->SetAttribute("solidColor", "192 192 192 255");
+    xml_rendering_option->SetAttribute("pointColor", "252 233 79 255");
+    xml_rendering_option->SetAttribute("boxColor", "234 234 234 255");
+    xml_rendering_option->SetText("000111010000000000000000000000000000000010100000000100111010110000001101");
+    xml_mlmesh->InsertEndChild(xml_rendering_option);
   }
-  
-  return (doc.SaveFile(project_file_path.c_str()) == tinyxml2::XML_NO_ERROR);
+
+  XMLElement* xml_rastergroup = doc.NewElement("RasterGroup");
+  xml_meshlabproject->InsertEndChild(xml_rastergroup);
+
+  XMLPrinter printer;
+  doc.Print(&printer);
+  std::string output_text = printer.CStr();
+  std::string::size_type pos = 0;
+  while ((pos = output_text.find("\r\n", pos)) != std::string::npos) {
+    output_text.replace(pos, 2, "\n");
+    ++ pos;
+  }
+
+  std::ofstream output_stream(project_file_path, std::ios::out | std::ios::binary);
+  if (!output_stream) {
+    return false;
+  }
+  output_stream << output_text;
+  return true;
 }
 
 }  // namespace io

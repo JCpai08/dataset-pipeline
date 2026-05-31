@@ -30,6 +30,8 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 #include <opencv2/core/core.hpp>
 #include <pcl/point_cloud.h>
@@ -146,6 +148,7 @@ class Problem {
   
   // Makes the optimization problem use fixed depth maps. Useful for RGB-D
   // cameras and for testing with ground truth depth maps.
+  // 优化了位姿以后 重新渲染深度图 ？
   void SetFixedDepthMaps(const IndexedScaleDepthMaps& depth_maps);
   
   // Changes the current (minimum) scale.

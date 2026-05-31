@@ -3,7 +3,28 @@ FROM ubuntu:20.04
 WORKDIR /
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt update && apt install -y git libflann-dev libeigen3-dev libboost-all-dev cmake libgmp-dev libglew-dev libgoogle-glog-dev qt5-default libproj-dev libqwt-qt5-dev libpcl-dev libopengl-dev
+RUN env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy apt-get update \
+  && env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy apt-get install -y --no-install-recommends \
+    git \
+    libflann-dev \
+    libeigen3-dev \
+    libboost-all-dev \
+    cmake \
+    libgmp-dev \
+    libglew-dev \
+    libgoogle-glog-dev \
+    qt5-default \
+    libproj-dev \
+    libqwt-qt5-dev \
+    libpcl-dev \
+    libopengl-dev \
+  && rm -rf /var/lib/apt/lists/*
+RUN env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy apt-get update \
+  && env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+RUN env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy apt-get update \
+  && env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy apt-get install -y --no-install-recommends build-essential \
+  && rm -rf /var/lib/apt/lists/*
 RUN git clone https://github.com/laurentkneip/opengv.git
 RUN cd opengv \
   && mkdir build \

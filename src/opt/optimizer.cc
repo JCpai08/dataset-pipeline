@@ -29,11 +29,22 @@
 
 #include "opt/optimizer.h"
 
+#include <chrono>
 #include "opt/color_optimizer.h"
 #include "opt/cost_calculator.h"
 #include "opt/intrinsics_and_pose_optimizer.h"
 #include "opt/observations_cache.h"
 #include "opt/visibility_estimator.h"
+
+
+namespace {
+
+double SecondsSince(const std::chrono::steady_clock::time_point& start) {
+  return std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - start).count();
+}
+
+}  // namespace
 
 namespace opt {
 
@@ -117,15 +128,35 @@ bool Optimizer::RunOnCurrentScale(
       LOG(INFO) << "  Observations update ...";
     }
     constexpr int kBorderSize = 1;
-    if (cache_observations_) {
-      observations_cache->GetObservations(kBorderSize, &image_id_to_observations);
+    const auto observations_update_start = std::chrono::steady_clock::now();
+    const auto observations_start = std::chrono::steady_clock::now();
+    if (observations_cache) {
+      observations_cache->GetObservations(
+          kBorderSize, &image_id_to_observations, print_progress);
     } else {
       visibility_estimator->CreateObservationsForAllImages(
           kBorderSize, &image_id_to_observations);
+      if (print_progress) {
+        LOG(INFO) << "    CreateObservationsForAllImages: "
+                  << SecondsSince(observations_start) << " s";
+      }
+      observations_cache.reset(
+          new opt::ObservationsCache(image_id_to_observations, problem_));
+      // cache_observations_ = true;
+      if (print_progress) {
+        LOG(INFO) << "    Initialized in-memory observations cache from full observations.";
+      }
     }
+    const auto neighbors_start = std::chrono::steady_clock::now();
     visibility_estimator->DetermineIfAllNeighborsAreObserved(
         image_id_to_observations,
         &image_id_to_neighbors_observed);
+    if (print_progress) {
+      LOG(INFO) << "    DetermineIfAllNeighborsAreObserved: "
+                << SecondsSince(neighbors_start) << " s";
+      LOG(INFO) << "    Observations update total: "
+                << SecondsSince(observations_update_start) << " s";
+    }
     
     // Update point colors (if required).
     if (use_variable_color_residuals) {

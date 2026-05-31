@@ -29,6 +29,9 @@
 
 #include "opt/problem.h"
 
+#include <chrono>
+#include <fstream>
+
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <pcl/io/ply_io.h>
@@ -42,6 +45,15 @@
 #include "opt/descriptor.h"
 #include "opt/multi_scale_point_cloud.h"
 #include "opt/parameters.h"
+
+namespace {
+
+double SecondsSince(const std::chrono::steady_clock::time_point& start) {
+  return std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - start).count();
+}
+
+}  // namespace
 
 namespace opt {
 
@@ -162,19 +174,25 @@ void Problem::ComputeMultiResPointCloud(
     const std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>& scans,
     const VisibilityEstimator& visibility_estimator,
     std::vector<std::vector<float>>* multi_res_colors) {
+  const auto total_start = std::chrono::steady_clock::now();
   bool use_fixed_scan_colors = GlobalParameters().fixed_residuals_weight > 0;
   int num_scans = scans.size();
   
   // Flatten the scans, convert to geometry only cloud with separate colors
   // (instead of RGB values), and store scan index for each point.
   LOG(INFO) << "ComputeMultiResPointCloud(): Pre-processing scans ...";
+  const auto preprocess_start = std::chrono::steady_clock::now();
   pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud;
   std::vector<float> colors;
   std::vector<uint8_t> scan_indices;
   PreprocessScans(scans, &point_cloud, &colors, &scan_indices);
+  LOG(INFO) << "ComputeMultiResPointCloud(): Pre-processing scans took "
+            << SecondsSince(preprocess_start) << " s for "
+            << point_cloud->size() << " points";
   
   // Create the multi-resolution point cloud.
   LOG(INFO) << "ComputeMultiResPointCloud(): Creating multi-res point cloud ...";
+  const auto create_multires_start = std::chrono::steady_clock::now();
   std::vector<std::vector<uint8_t>> multi_res_scan_indices;
   // TODO: Specifying a single minimum_scaling_factor is not correct if images
   // with different sizes are used simultaneously.
@@ -197,12 +215,15 @@ void Problem::ComputeMultiResPointCloud(
       &points_,
       multi_res_colors,
       &multi_res_scan_indices);
+  LOG(INFO) << "ComputeMultiResPointCloud(): Creating multi-res point cloud took "
+            << SecondsSince(create_multires_start) << " s";
   
   LOG(INFO) << "ComputeMultiResPointCloud(): #Initial point scales: " << point_radii_.size();
   
   // Filter out point scales with less points than GlobalParameters().point_neighbor_candidate_count + 1
   // for any of the scans.
   LOG(INFO) << "ComputeMultiResPointCloud(): Filtering out scales with insufficient point count ...";
+  const auto first_scale_filter_start = std::chrono::steady_clock::now();
   for (int point_scale = 0;
       point_scale < static_cast<int>(point_radii_.size());
       ++ point_scale) {
@@ -237,22 +258,40 @@ void Problem::ComputeMultiResPointCloud(
       -- point_scale;
     }
   }
+  LOG(INFO) << "ComputeMultiResPointCloud(): First scale filtering took "
+            << SecondsSince(first_scale_filter_start) << " s";
   
   // For each point scale, determine point neighbors.
   LOG(INFO) << "ComputeMultiResPointCloud(): Determining neighbors ...";
+  const auto first_neighbors_start = std::chrono::steady_clock::now();
   neighbor_point_indices_.resize(points_.size());
   for (int point_scale = 0;
       point_scale < static_cast<int>(point_radii_.size());
       ++ point_scale) {
-    DeterminePointNeighbors(num_scans, use_fixed_scan_colors, points_[point_scale], multi_res_scan_indices[point_scale], &neighbor_point_indices_[point_scale]);
+    const auto neighbor_scale_start = std::chrono::steady_clock::now();
+    DeterminePointNeighbors(
+      num_scans, 
+      use_fixed_scan_colors, 
+      points_[point_scale], 
+      multi_res_scan_indices[point_scale], 
+      &neighbor_point_indices_[point_scale]);
+    LOG(INFO) << "ComputeMultiResPointCloud(): Neighbors pass 1 scale "
+              << point_scale << " (" << points_[point_scale]->size()
+              << " points) took " << SecondsSince(neighbor_scale_start)
+              << " s";
   }
+  LOG(INFO) << "ComputeMultiResPointCloud(): Determining neighbors pass 1 took "
+            << SecondsSince(first_neighbors_start) << " s";
   
   // Filter out points with small "gradient" (intensity differences to neighbors).
   LOG(INFO) << "ComputeMultiResPointCloud(): Filtering out points with small intensity differences ...";
+  const auto intensity_filter_start = std::chrono::steady_clock::now();
   for (int point_scale = 0;
       point_scale < static_cast<int>(point_radii_.size());
       ++ point_scale) {
+    const auto intensity_scale_start = std::chrono::steady_clock::now();
     pcl::PointCloud<pcl::PointXYZ>::Ptr& point_cloud = points_[point_scale];
+    const std::size_t point_count_before_filter = point_cloud->size();
     std::vector<float>& point_colors = (*multi_res_colors)[point_scale];
     std::vector<uint8_t>& point_scan_indices = multi_res_scan_indices[point_scale];
     std::vector<bool> delete_this_point(point_cloud->size());
@@ -309,11 +348,18 @@ void Problem::ComputeMultiResPointCloud(
     point_cloud->resize(output_index);
     point_colors.resize(output_index);
     point_scan_indices.resize(output_index);
+    LOG(INFO) << "ComputeMultiResPointCloud(): Intensity filter scale "
+              << point_scale << " kept " << output_index << " / "
+              << point_count_before_filter << " points in "
+              << SecondsSince(intensity_scale_start) << " s";
   }
+  LOG(INFO) << "ComputeMultiResPointCloud(): Intensity filtering took "
+            << SecondsSince(intensity_filter_start) << " s";
   
   // Again, filter out possible point scales with less points than
   // GlobalParameters().point_neighbor_candidate_count + 1 after the previous filtering step.
   LOG(INFO) << "ComputeMultiResPointCloud(): Filtering out scales with insufficient point count ...";
+  const auto second_scale_filter_start = std::chrono::steady_clock::now();
   for (int point_scale = 0;
       point_scale < static_cast<int>(point_radii_.size());
       ++ point_scale) {
@@ -349,16 +395,28 @@ void Problem::ComputeMultiResPointCloud(
       -- point_scale;
     }
   }
+  LOG(INFO) << "ComputeMultiResPointCloud(): Second scale filtering took "
+            << SecondsSince(second_scale_filter_start) << " s";
   
   // Repeat the neighbor search on each point scale for the reduced set of
   // points.
   LOG(INFO) << "ComputeMultiResPointCloud(): Determining neighbors ...";
+  const auto second_neighbors_start = std::chrono::steady_clock::now();
   neighbor_point_indices_.resize(points_.size());
   for (int point_scale = 0;
       point_scale < static_cast<int>(point_radii_.size());
       ++ point_scale) {
+    const auto neighbor_scale_start = std::chrono::steady_clock::now();
     DeterminePointNeighbors(num_scans, use_fixed_scan_colors, points_[point_scale], multi_res_scan_indices[point_scale], &neighbor_point_indices_[point_scale]);
+    LOG(INFO) << "ComputeMultiResPointCloud(): Neighbors pass 2 scale "
+              << point_scale << " (" << points_[point_scale]->size()
+              << " points) took " << SecondsSince(neighbor_scale_start)
+              << " s";
   }
+  LOG(INFO) << "ComputeMultiResPointCloud(): Determining neighbors pass 2 took "
+            << SecondsSince(second_neighbors_start) << " s";
+  LOG(INFO) << "ComputeMultiResPointCloud(): Total "
+            << SecondsSince(total_start) << " s";
 }
 
 void Problem::SaveMultiResPointCloud(const std::string& save_directory_path, const std::vector< std::vector< float > >& multi_res_colors, bool modify_colors_for_display) {
@@ -516,20 +574,24 @@ void Problem::SetScanGeometryAndInitialize(
   
   // Initialize scan geometry. If a multires point cloud was saved earlier, load
   // it instead of recomputing it.
+  const bool has_multi_res_cache_directory =
+      !multi_res_point_cloud_directory_path.empty();
+  const bool use_multi_res_cache =
+      cache_multi_res_point_cloud && has_multi_res_cache_directory;
+  
   std::vector<std::vector<float>> multi_res_colors;
-  if(!multi_res_point_cloud_directory_path.empty()){
-    if (cache_multi_res_point_cloud) {
-      if (LoadMultiResPointCloud(multi_res_point_cloud_directory_path, &multi_res_colors)) {
-        LOG(INFO) << "SetScanGeometryAndInitialize(): Loaded existing multi-res point cloud.";
-      } else {
-        ComputeMultiResPointCloud(scans, visibility_estimator, &multi_res_colors);
-        
-        // Save multires point cloud for faster loading next time (and to keep it
-        // constant while camera poses change).
-        SaveMultiResPointCloud(multi_res_point_cloud_directory_path, multi_res_colors, false);
-      }
+  if (!scans.empty()) {
+    if (use_multi_res_cache &&
+        LoadMultiResPointCloud(multi_res_point_cloud_directory_path, &multi_res_colors)) {
+      LOG(INFO) << "SetScanGeometryAndInitialize(): Loaded existing multi-res point cloud.";
     } else {
       ComputeMultiResPointCloud(scans, visibility_estimator, &multi_res_colors);
+      
+      // Save multires point cloud for faster loading next time (and to keep it
+      // constant while camera poses change).
+      if (use_multi_res_cache) {
+        SaveMultiResPointCloud(multi_res_point_cloud_directory_path, multi_res_colors, false);
+      }
     }
   
     // Allocate space for descriptors and observation counts.
@@ -572,12 +634,12 @@ void Problem::SetScanGeometryAndInitialize(
       }
     }
   
-    if (kDebugWriteMultiResPointCloudScales) {
+    if (kDebugWriteMultiResPointCloudScales && has_multi_res_cache_directory) {
       DebugWriteMultiResPointCloudScales(
           multi_res_colors,
           multi_res_point_cloud_directory_path);
     }
-  }else{
+  } else {
     point_radii_.resize(0);
   }
 }

@@ -33,8 +33,7 @@
 #include <Eigen/StdVector>
 #include <sophus/se3.hpp>
 #include <pcl/pcl_base.h>
-#include <pcl/registration/eigen.h>
-#include <pcl/registration/boost.h>
+#include <pcl/common/eigen.h>
 #include <pcl/common/transforms.h>
 #include <pcl/correspondence.h>
 #include <pcl/registration/boost_graph.h>

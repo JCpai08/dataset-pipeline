@@ -1,0 +1,1 @@
+docker run --rm eth3d-dataset-pipeline /dataset-pipeline/build/Test_ICP

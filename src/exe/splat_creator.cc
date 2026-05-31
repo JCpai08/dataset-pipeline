@@ -141,8 +141,8 @@ int main(int argc, char** argv) {
   const std::size_t cloud_size = point_normal_cloud->size();
   int current_point = 0;
   #pragma omp parallel for
-  for (std::size_t i = 0; i < cloud_size; ++ i) {
-    const pcl::PointNormal& point_normal = point_normal_cloud->at(i);
+  for (long long i = 0; i < static_cast<long long>(cloud_size); ++ i) {
+    const pcl::PointNormal& point_normal = point_normal_cloud->at(static_cast<std::size_t>(i));
     #pragma omp critical
     {
       current_point ++;

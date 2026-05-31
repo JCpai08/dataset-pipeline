@@ -278,6 +278,9 @@ void VisibilityEstimator::_AppendObservationsForImage(
       Eigen::Vector2f ixy =
           image_scale_camera.NormalizedToImage(
               Eigen::Vector2f(pp.x() / pp.z(), pp.y() / pp.z()));
+      if (!ixy.allFinite()) {
+        continue;
+      }
       int ix = ixy.x() + 0.5f;
       int iy = ixy.y() + 0.5f;
       if (ix >= 0 &&
@@ -316,6 +319,9 @@ void VisibilityEstimator::_AppendObservationsForImageNoScale(
       Eigen::Vector2f ixy =
           image_scale_camera.NormalizedToImage(
               Eigen::Vector2f(pp.x() / pp.z(), pp.y() / pp.z()));
+      if (!ixy.allFinite()) {
+        continue;
+      }
       int ix = ixy.x() + 0.5f;
       int iy = ixy.y() + 0.5f;
       if (ixy.x() + 0.5f >= 0 &&
@@ -387,6 +393,9 @@ void VisibilityEstimator::_AppendObservationsForIndexedPointsVisibleInImage(
       Eigen::Vector2f ixy =
           image_scale_camera.NormalizedToImage(
               Eigen::Vector2f(pp.x() / pp.z(), pp.y() / pp.z()));
+      if (!ixy.allFinite()) {
+        continue;
+      }
       int ix = ixy.x() + 0.5f;
       int iy = ixy.y() + 0.5f;
       if (ix >= 0 &&
@@ -429,6 +438,9 @@ void VisibilityEstimator::CreateObservationIfScaleFits(
       image_scale_camera.NormalizedToImage(
           Eigen::Vector2f(pp_radius.x() / pp_radius.z(),
                           pp_radius.y() / pp_radius.z()));
+  if (!ixy_radius.allFinite()) {
+    return;
+  }
   Eigen::Vector2f dxy = ixy_radius - ixy;
   float radius_pixels = dxy.norm();
   
